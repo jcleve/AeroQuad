@@ -123,23 +123,23 @@ void nvrWritePID(unsigned char IDPid, unsigned int IDEeprom) {
 // contains all default values when re-writing EEPROM
 void initializeEEPROM() {
   PID[RATE_XAXIS_PID_IDX].P = 0.1;
-  PID[RATE_XAXIS_PID_IDX].I = 0.5;
-  PID[RATE_XAXIS_PID_IDX].D = -0.3;
+  PID[RATE_XAXIS_PID_IDX].I = 0.01;
+  PID[RATE_XAXIS_PID_IDX].D = -0.35;
   PID[RATE_YAXIS_PID_IDX].P = 0.1;
-  PID[RATE_YAXIS_PID_IDX].I = 0.5;
-  PID[RATE_YAXIS_PID_IDX].D = -0.3;
-  PID[ATTITUDE_XAXIS_PID_IDX].P = 0.45;
+  PID[RATE_YAXIS_PID_IDX].I = 0.01;
+  PID[RATE_YAXIS_PID_IDX].D = -0.35;
+  PID[ATTITUDE_XAXIS_PID_IDX].P = 4.0;
   PID[ATTITUDE_XAXIS_PID_IDX].I = 0.0;
   PID[ATTITUDE_XAXIS_PID_IDX].D = 0.0;
-  PID[ATTITUDE_YAXIS_PID_IDX].P = 0.45;
+  PID[ATTITUDE_YAXIS_PID_IDX].P = 4.0;
   PID[ATTITUDE_YAXIS_PID_IDX].I = 0.0;
   PID[ATTITUDE_YAXIS_PID_IDX].D = 0.0;
-  PID[ZAXIS_PID_IDX].P = 0.2;
-  PID[ZAXIS_PID_IDX].I = 0.5;
+  PID[ZAXIS_PID_IDX].P = 0.65;
+  PID[ZAXIS_PID_IDX].I = 0.05;
   PID[ZAXIS_PID_IDX].D = 0.0;
   rotationSpeedFactor = 2.5;
   yawSpeedFactor = 2.5;
-  throttlePIDAdjustmentFactor = 25;
+  throttlePIDAdjustmentFactor = 50;
   
   receiverTypeUsed = RECEIVER_PWM;
   for(byte channel = 0; channel < LAST_CHANNEL; channel++) {

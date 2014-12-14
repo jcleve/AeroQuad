@@ -1008,10 +1008,10 @@ void process100HzTask() {
   fastTaskGyroSampleCount = 0;
 
   #if defined (HeadingMagHold) 
-    calculateKinematicsMAGR(gyroRate[XAXIS], gyroRate[YAXIS], gyroRate[ZAXIS], filteredAccel[XAXIS], filteredAccel[YAXIS], filteredAccel[ZAXIS], measuredMag[XAXIS], measuredMag[YAXIS], measuredMag[ZAXIS], G_Dt);
+    calculateKinematicsMAGR(gyroRate[XAXIS], gyroRate[YAXIS], gyroRate[ZAXIS], filteredAccel[XAXIS], filteredAccel[YAXIS], filteredAccel[ZAXIS], measuredMag[XAXIS], measuredMag[YAXIS], measuredMag[ZAXIS]);
     magDataUpdate = false;
   #else
-    calculateKinematicsAGR(gyroRate[XAXIS], gyroRate[YAXIS], gyroRate[ZAXIS], meterPerSecSec[XAXIS], meterPerSecSec[YAXIS], meterPerSecSec[ZAXIS], G_Dt);
+    calculateKinematicsAGR(gyroRate[XAXIS], gyroRate[YAXIS], gyroRate[ZAXIS], meterPerSecSec[XAXIS], meterPerSecSec[YAXIS], meterPerSecSec[ZAXIS]);
   #endif
 
 

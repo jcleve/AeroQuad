@@ -100,7 +100,7 @@
 //#define RemotePCReceiver	// EXPERIMENTAL Use PC as transmitter via serial communicator with XBEE
 //#define ReceiverSBUS		// Use a Futaba sBUS RX, connect sBUS data line via an inverter (see wiki) to Serial2 RX, supports up to 8 channels on v2 and STM32 boards
 //#define ReceiverPPM		// Use a PPM receiver
-#define ReceiverHWPPM		// Use a PPM receiver with HW timer (less jitter on channel values than PPM), needs a HW modification (see wiki)
+//#define ReceiverHWPPM		// Use a PPM receiver with HW timer (less jitter on channel values than PPM), needs a HW modification (see wiki)
 
 //#define UseAnalogRSSIReader	// Reads RSSI for receiver failsafe, NEEDS A RECEIVER WITH FAILSAVE CONNECTED ON PIN A6 OF THE SHIELD
 //#define UseEzUHFRSSIReader	// Reads RSSI and Signal quality on channel 7(RSSI) and 8(Signal Quality) of the EzUHF receiver (Receiver have to be configures this way)

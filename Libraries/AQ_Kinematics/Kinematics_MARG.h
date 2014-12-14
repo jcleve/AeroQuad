@@ -107,14 +107,17 @@ void initializeKinematics(double ax, double ay, double az, double mx, double my,
 
 void calculateKinematicsMAGR(double gx, double gy, double gz,
                     double ax, double ay, double az,
-                    double mx, double my, double mz,
-                    double dt)
+                    double mx, double my, double mz)
 {
+    unsigned long currentKinematicTime = micros();
+    double dt = (currentKinematicTime - kinematicPreviousTime) / 1000000.0;
+    kinematicPreviousTime = currentKinematicTime;
+
 	halfT = dt * 0.5f;
 	double norm = sqrt(SQR(ax) + SQR(ay) + SQR(az));
-	calculateAccConfidence(norm);
-	kpAcc = DEFAULT_Kp * accConfidence;
-	kiAcc = DEFAULT_Ki * accConfidence;
+//	calculateAccConfidence(norm);
+	kpAcc = DEFAULT_Kp;// * accConfidence;
+	kiAcc = DEFAULT_Ki;// * accConfidence;
 
 	double normR = 1.0f / norm;
 	ax *= normR;

@@ -31,6 +31,7 @@ double previousEz = 0.0;
 
 
 // This class is responsible for calculating vehicle attitude
+unsigned long kinematicPreviousTime = 0;
 byte kinematicsType = 0;
 double kinematicsAngle[3] = {0.0,0.0,0.0};
 double correctedRateVector[3] = {0.0,0.0,0.0};
@@ -40,10 +41,11 @@ double earthAccel[3] = {0.0,0.0,0.0};
 
 #define HardFilter(O,N)  ((O)*0.9f+(N)*0.1f)
 
-#define DEFAULT_Kp 0.5 // 0.2
+#define DEFAULT_Kp 0.017 // 0.2
 #define DEFAULT_Ki 0.0005 // 0.0005
 
-double accConfidence      = 1.0f;
+
+/*double accConfidence      = 1.0f;
 double accConfidenceDecay = 1.0f / sqrt(0.6f);	// @todo, accelCutOff should go into eeprom... if it work
 
 void calculateAccConfidence(double accMag)
@@ -56,7 +58,7 @@ void calculateAccConfidence(double accMag)
 	accMagP = accMag;
 	accConfidence = constrain(1.0 - (accConfidenceDecay * sqrt(fabs(accMag - 1.0f))), 0.0f, 1.0f);
 }
-
+*/
 
 void initializeBaseKinematicParam() {
 

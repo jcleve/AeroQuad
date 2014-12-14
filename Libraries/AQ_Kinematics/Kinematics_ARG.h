@@ -58,16 +58,19 @@ double Kp, Ki;
 ////////////////////////////////////////////////////////////////////////////////
 // argUpdate
 ////////////////////////////////////////////////////////////////////////////////
-void calculateKinematicsAGR(double gx, double gy, double gz, double ax, double ay, double az, double G_Dt) {
+void calculateKinematicsAGR(double gx, double gy, double gz, double ax, double ay, double az) {
   
-    
-  halfT = G_Dt/2;
+  unsigned long currentKinematicTime = micros();
+  double dt = (currentKinematicTime - kinematicPreviousTime) / 1000000.0;
+  kinematicPreviousTime = currentKinematicTime;
+  
+  halfT = dt / 2.0;
   
   // normalise the measurements
   double norm = sqrt(ax*ax + ay*ay + az*az);       
-  calculateAccConfidence(norm);
-  Kp = DEFAULT_Kp * accConfidence;
-  Ki = DEFAULT_Ki * accConfidence;
+//  calculateAccConfidence(norm);
+  Kp = DEFAULT_Kp;// * accConfidence;
+  Ki = DEFAULT_Ki;// * accConfidence;
 	
   ax = ax / norm;
   ay = ay / norm;

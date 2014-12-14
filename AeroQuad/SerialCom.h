@@ -271,12 +271,12 @@ void readSerialCommand() {
 //***************************************************************************************************
 
 void PrintValueComma(float val) {
-  SERIAL_PRINT(val);
+  SERIAL_PRINT(val,3);
   comma();
 }
 
 void PrintValueComma(double val) {
-  SERIAL_PRINT(val);
+  SERIAL_PRINT(val,3);
   comma();
 }
 
