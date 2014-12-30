@@ -188,12 +188,16 @@
   #define LED_Yellow 12
 
   #include <Device_I2C.h>
-
+  #define MPU6000_I2C
+  #include <Platform_MPU6000.h>
+  
   // Gyroscope declaration
-  #include <Gyroscope_ITG3200.h>
+  //#include <Gyroscope_ITG3200.h>
+  #include <Gyroscope_MPU6000.h>
 
   // Accelerometer declaration
-  #include <Accelerometer_BMA180.h>
+  //#include <Accelerometer_BMA180.h>
+  #include <Accelerometer_MPU6000.h>
 
   // Receiver declaration
   #define RECEIVER_328P
@@ -411,8 +415,8 @@
   // heading mag hold declaration
   #ifdef HeadingMagHold
     #include <Compass.h>
-//    #define SPARKFUN_5883L_BOB
-    #define HMC5843
+    #define SPARKFUN_5883L_BOB
+    //#define HMC5843
   #endif
 
   // Altitude declaration
@@ -498,14 +502,18 @@
   #define LED_Yellow 31
 
   #include <Device_I2C.h>
-
+  #define MPU6000_I2C  //cleve
+  //#include <Platform_MPU6000.h> //cleve
+  
   // Gyroscope declaration
-  #define ITG3200_ADDRESS_ALTERNATE
-  #include <Gyroscope_ITG3200_9DOF.h>
+  #include <Gyroscope_MPU6000.h> //cleve
+  //#define ITG3200_ADDRESS_ALTERNATE
+  //#include <Gyroscope_ITG3200_9DOF.h>  
 
   // Accelerometer declaration
-  #include <Accelerometer_ADXL345_9DOF.h>
-
+  #include <Accelerometer_MPU6000.h>
+  //#include <Accelerometer_ADXL345_9DOF.h>
+  
   // Receiver Declaration
   #define RECEIVER_MEGA
 
@@ -515,7 +523,10 @@
   // heading mag hold declaration
   #ifdef HeadingMagHold
     #include <Compass.h>
-    #define SPARKFUN_9DOF_5883L
+    //#define SPARKFUN_5883L_BOB //cleve
+    //#define SPARKFUN_9DOF_5883L
+    //#define HMC5883L
+    #define IMU_10DOF_HMC5883L
   #endif
 
   // Altitude declaration
@@ -1138,14 +1149,18 @@
 //********************************************************
 //******* HEADING HOLD MAGNETOMETER DECLARATION **********
 //********************************************************
-#if defined(HMC5843)
-  #include <HeadingFusionProcessorMARG.h>
-  #include <Magnetometer_HMC5843.h>
-#elif defined(SPARKFUN_9DOF_5883L) || defined(SPARKFUN_5883L_BOB) || defined(HMC5883L)
+#if defined(IMU_10DOF_HMC5883L)
   #include <HeadingFusionProcessorMARG.h>
   #include <Magnetometer_HMC5883L.h>
-#elif defined(COMPASS_CHR6DM)
 #endif
+//#if defined(HMC5843)
+//  #include <HeadingFusionProcessorMARG.h>
+//  #include <Magnetometer_HMC5843.h>
+//#elif defined(10DOF_HMC5883L) || defined(SPARKFUN_9DOF_5883L) || defined(SPARKFUN_5883L_BOB) || defined(HMC5883L)
+//  #include <HeadingFusionProcessorMARG.h>
+//  #include <Magnetometer_HMC5883L.h>
+//#elif defined(COMPASS_CHR6DM)
+//#endif
 
 //********************************************************
 //******* ALTITUDE HOLD BAROMETER DECLARATION ************
