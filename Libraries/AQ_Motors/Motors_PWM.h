@@ -36,7 +36,7 @@
   #define MOTORPIN6    11
   #define MOTORPIN7    12
 #else
-  #define MOTORPIN0    3
+  #define MOTORPIN0    8 // JC: updated to 8 from 3
   #define MOTORPIN1    9
   #define MOTORPIN2   10
   #define MOTORPIN3   11

@@ -35,6 +35,7 @@ float rawMag[3] = {0.0,0.0,0.0};
 float magBias[3] = {0.0,0.0,0.0};
 
 void initializeMagnetometer();
+bool detectMagnetometer(int addr);
 void measureMagnetometer(float roll, float pitch);
 
 const float getHdgXY(byte axis) {
