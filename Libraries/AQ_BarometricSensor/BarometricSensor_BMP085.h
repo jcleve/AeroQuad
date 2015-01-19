@@ -185,9 +185,74 @@ void evaluateBaroAltitude() {
   pressure = (p + ((x1 + x2 + 3791) >> 4));
     
   currentBaroRawAltitude = 44330 * (1 - pow(pressure/101325.0, pressureFactor)); // returns absolute baroAltitude in meters
-  baroRawAltitude = (currentBaroRawAltitude + previousBaroRawAltitude + seccondPreviousBaroRawAltitude) / 3;
+  Serial.println(currentBaroRawAltitude);
+  previousBaroRawAltitudeDataSum = currentBaroRawAltitude;
+  int divider = 2;
+  
+  for(int i=NUM_PREVIOUS_BARO_READINGS - 1; i>=0; i--)
+  {
+	if(previousBaroRawAltitudeData[i] == 0.0)  {
+		continue;
+	}
+	previousBaroRawAltitudeDataSum += previousBaroRawAltitudeData[i];
+	divider++;
+  }
+  
+  baroRawAltitude = (currentBaroRawAltitude + previousBaroRawAltitudeDataSum) / divider;
+  //Serial.println(baroRawAltitude);
+  
+  for(int i=0; i<NUM_PREVIOUS_BARO_READINGS - 1; i++)
+  {
+	  previousBaroRawAltitudeData[i] = previousBaroRawAltitudeData[i + 1];
+	  //Serial.println(previousBaroRawAltitudeData[i]);
+  }
+  previousBaroRawAltitudeData[NUM_PREVIOUS_BARO_READINGS - 1] = currentBaroRawAltitude;
+  
+    
+  /*if(ninthPreviousBaroRawAltitude != 0.0) {
+	baroRawAltitude = (currentBaroRawAltitude + previousBaroRawAltitude + seccondPreviousBaroRawAltitude + thirdPreviousBaroRawAltitude + fourthPreviousBaroRawAltitude + fifthPreviousBaroRawAltitude + sixthPreviousBaroRawAltitude + seventhPreviousBaroRawAltitude + eighthPreviousBaroRawAltitude + ninthPreviousBaroRawAltitude) / 10;  
+  }
+  else if(eighthPreviousBaroRawAltitude != 0.0) {
+	baroRawAltitude = (currentBaroRawAltitude + previousBaroRawAltitude + seccondPreviousBaroRawAltitude + thirdPreviousBaroRawAltitude + fourthPreviousBaroRawAltitude + fifthPreviousBaroRawAltitude + sixthPreviousBaroRawAltitude + seventhPreviousBaroRawAltitude + eighthPreviousBaroRawAltitude) / 9;  
+  }
+  else if(seventhPreviousBaroRawAltitude != 0.0) {
+	baroRawAltitude = (currentBaroRawAltitude + previousBaroRawAltitude + seccondPreviousBaroRawAltitude + thirdPreviousBaroRawAltitude + fourthPreviousBaroRawAltitude + fifthPreviousBaroRawAltitude + sixthPreviousBaroRawAltitude + seventhPreviousBaroRawAltitude) / 8;  
+  }
+  else if(sixthPreviousBaroRawAltitude != 0.0) {
+	baroRawAltitude = (currentBaroRawAltitude + previousBaroRawAltitude + seccondPreviousBaroRawAltitude + thirdPreviousBaroRawAltitude + fourthPreviousBaroRawAltitude + fifthPreviousBaroRawAltitude + sixthPreviousBaroRawAltitude) / 7;  
+  }
+  else if(fifthPreviousBaroRawAltitude != 0.0) {
+	baroRawAltitude = (currentBaroRawAltitude + previousBaroRawAltitude + seccondPreviousBaroRawAltitude + thirdPreviousBaroRawAltitude + fourthPreviousBaroRawAltitude + fifthPreviousBaroRawAltitude) / 6;  
+  }
+  else if(fourthPreviousBaroRawAltitude != 0.0) {
+	baroRawAltitude = (currentBaroRawAltitude + previousBaroRawAltitude + seccondPreviousBaroRawAltitude + thirdPreviousBaroRawAltitude + fourthPreviousBaroRawAltitude) / 5;  
+  }
+  else if(thirdPreviousBaroRawAltitude != 0.0) {
+	baroRawAltitude = (currentBaroRawAltitude + previousBaroRawAltitude + seccondPreviousBaroRawAltitude + thirdPreviousBaroRawAltitude) / 4;    
+  }
+  else if(seccondPreviousBaroRawAltitude != 0.0) {
+	baroRawAltitude = (currentBaroRawAltitude + previousBaroRawAltitude + seccondPreviousBaroRawAltitude) / 3;      
+  }
+  else if(previousBaroRawAltitude != 0.0){
+	baroRawAltitude = (currentBaroRawAltitude + previousBaroRawAltitude) / 2;  
+  }
+  else {
+	  baroRawAltitude = currentBaroRawAltitude;
+  }
+  */
+  
+  
+  
+  /*ninthPreviousBaroRawAltitude = eighthPreviousBaroRawAltitude;
+  eighthPreviousBaroRawAltitude = seventhPreviousBaroRawAltitude;
+  seventhPreviousBaroRawAltitude = sixthPreviousBaroRawAltitude;
+  sixthPreviousBaroRawAltitude = fifthPreviousBaroRawAltitude;
+  fifthPreviousBaroRawAltitude = fourthPreviousBaroRawAltitude;
+  fourthPreviousBaroRawAltitude = thirdPreviousBaroRawAltitude;
+  thirdPreviousBaroRawAltitude = seccondPreviousBaroRawAltitude;
   seccondPreviousBaroRawAltitude = previousBaroRawAltitude;
-  previousBaroRawAltitude = currentBaroRawAltitude;
+  previousBaroRawAltitude = currentBaroRawAltitude;*/
+  
   // use calculation below in case you need a smaller binary file for CPUs having just 32KB flash ROM
   // baroRawAltitude = (101325.0-pressure)/4096*346;
   baroAltitude = filterSmooth(baroRawAltitude, baroAltitude, baroSmoothFactor);
