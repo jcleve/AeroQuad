@@ -29,6 +29,19 @@ float baroRawAltitude    		= 0.0;
 float currentBaroRawAltitude    = 0.0;
 float previousBaroRawAltitude   = 0.0;
 float seccondPreviousBaroRawAltitude   = 0.0;
+float thirdPreviousBaroRawAltitude = 0.0;
+float fourthPreviousBaroRawAltitude = 0.0;
+float fifthPreviousBaroRawAltitude = 0.0;
+float sixthPreviousBaroRawAltitude = 0.0;
+float seventhPreviousBaroRawAltitude = 0.0;
+float eighthPreviousBaroRawAltitude = 0.0;
+float ninthPreviousBaroRawAltitude = 0.0;
+
+const int NUM_PREVIOUS_BARO_READINGS = 10;
+float previousBaroRawAltitudeData[NUM_PREVIOUS_BARO_READINGS]; 
+
+float previousBaroRawAltitudeDataSum = 0.0;
+
 float baroGroundAltitude 		= 0.0;
 float baroSmoothFactor   		= 0.03;
   
