@@ -75,11 +75,11 @@
   #define LED_Yellow 31
 
   #include <Device_I2C.h>
-  #define MPU6000_I2C  //cleve
-  #include <Platform_MPU6000.h> //cleve
+  #define MPU6000_I2C  
+  #include <Platform_MPU6000.h> 
   
   // Gyroscope declaration
-  #include <Gyroscope_MPU6000.h> //cleve
+  #include <Gyroscope_MPU6000.h> 
   
   // Accelerometer declaration
   #include <Accelerometer_MPU6000.h>
