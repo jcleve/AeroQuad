@@ -37,11 +37,11 @@ double kinematicsAngle[3] = {0.0,0.0,0.0};
 double correctedRateVector[3] = {0.0,0.0,0.0};
 double earthAccel[3] = {0.0,0.0,0.0};
 
-
+double kinematicCorrectedAccel[3] = { 0.0, 0.0, 0.0 };
 
 #define HardFilter(O,N)  ((O)*0.9f+(N)*0.1f)
 
-#define DEFAULT_Kp 0.017 // 0.2
+#define DEFAULT_Kp 0.02 // 0.2
 #define DEFAULT_Ki 0.0005 // 0.0005
 
 

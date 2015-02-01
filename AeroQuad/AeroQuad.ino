@@ -68,6 +68,15 @@
   #define USE_TPA_ADJUSTMENT  
 #endif
 
+#if defined (AfroMini)
+  #define AeroQuadSTM32
+  #define AltitudeHoldBaro
+  #define BattMonitor	
+  #define USE_HORIZON_MODE		
+  #define USE_TPA_ADJUSTMENT  
+#endif
+
+
 #if defined (AeroQuad_v18) || defined (AeroQuad_Mini) || defined (MWCFlip15)
   #undef USE_TPA_ADJUSTMENT
   #undef USE_HORIZON_MODE

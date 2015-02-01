@@ -22,8 +22,12 @@
 
 // Altitude declaration
 #ifdef AltitudeHoldBaro
-  #define USE_MS5611_ALTERNATE_ADDRESS
-  #define MS5611
+  #if defined (AfroMini)
+    #define BMP085
+  #else
+	#define USE_MS5611_ALTERNATE_ADDRESS
+    #define MS5611
+  #endif
 #endif
 
 // Battery Monitor declaration

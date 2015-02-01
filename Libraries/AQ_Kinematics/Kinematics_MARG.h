@@ -30,8 +30,6 @@ double exMag    = 0.0f, eyMag    = 0.0f, ezMag    = 0.0f; // mag error
 double exMagInt = 0.0f, eyMagInt = 0.0f, ezMagInt = 0.0f; // mag integral error
 double kpAcc, kiAcc;
 
-double kinematicCorrectedAccel[3] = { 0.0, 0.0, 0.0 };
-
 // auxiliary variables to reduce number of repeated operations
 double q0q0, q0q1, q0q2, q0q3;
 double q1q1, q1q2, q1q3;
