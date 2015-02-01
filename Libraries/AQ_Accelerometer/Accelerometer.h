@@ -31,6 +31,8 @@ float runTimeAccelBias[3] = {0, 0, 0};
 float accelOneG = 0.0;
 float meterPerSecSec[3] = {0.0,0.0,0.0};
 long accelSample[3] = {0,0,0};
+long previousAccelSample[3] = {0,0,0};
+long previousPreviousAccelSample[3] = {0,0,0};
 byte accelSampleCount = 0;
   
 void initializeAccel();

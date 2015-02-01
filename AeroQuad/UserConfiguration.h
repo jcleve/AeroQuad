@@ -42,8 +42,8 @@
 // STM32 processor
 //#define AeroQuadSTM32
 //#define Naze32
-//#define Naze32Full
-#define AfroMini
+#define Naze32Full
+//#define AfroMini
 
 
 /****************************************************************************

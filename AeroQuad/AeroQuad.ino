@@ -1009,18 +1009,28 @@ void process100HzTask() {
   hundredHZpreviousTime = currentTime;
   
   evaluateMetersPerSec();
-  for (int axis = XAXIS; axis <= ZAXIS; axis++) {
+  
+  for (byte axis = XAXIS; axis <= ZAXIS; axis++) {
     filteredAccel[axis] = computeFourthOrder(meterPerSecSec[axis], &fourthOrder[axis]);
     gyroRate[axis] = fastTaskGyroRate[axis] / fastTaskGyroSampleCount;
     fastTaskGyroRate[axis] = 0;
   }
   fastTaskGyroSampleCount = 0;
-
+  
+  const double accelMagnetude = sqrt((filteredAccel[XAXIS]*filteredAccel[XAXIS]) + 
+                                     (filteredAccel[YAXIS]*filteredAccel[YAXIS]) + 
+                                     (filteredAccel[ZAXIS]*filteredAccel[ZAXIS])) - accelOneG;
+  if (accelMagnetude > 1.15) {
+    for (byte axis = XAXIS; axis <= ZAXIS; axis++) {
+      filteredAccel[axis] = filteredAccel[axis] - accelMagnetude;
+    }
+  }
+  
   #if defined (HeadingMagHold) 
     calculateKinematicsMAGR(gyroRate[XAXIS], gyroRate[YAXIS], gyroRate[ZAXIS], filteredAccel[XAXIS], filteredAccel[YAXIS], filteredAccel[ZAXIS], measuredMag[XAXIS], measuredMag[YAXIS], measuredMag[ZAXIS]);
     magDataUpdate = false;
   #else
-    calculateKinematicsAGR(gyroRate[XAXIS], gyroRate[YAXIS], gyroRate[ZAXIS], meterPerSecSec[XAXIS], meterPerSecSec[YAXIS], meterPerSecSec[ZAXIS]);
+    calculateKinematicsAGR(gyroRate[XAXIS], gyroRate[YAXIS], gyroRate[ZAXIS], filteredAccel[XAXIS], filteredAccel[YAXIS], filteredAccel[ZAXIS]);
   #endif
 
 
