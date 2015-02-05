@@ -367,7 +367,7 @@
 //********************************************************
 #if defined(WirelessTelemetry) 
   #if defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
-    #define SERIAL_PORT Serial3
+    #define SERIAL_PORT Serial2
   #else    // force 328p to use the normal port
     #define SERIAL_PORT Serial
   #endif

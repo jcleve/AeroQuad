@@ -198,7 +198,9 @@ void initializeMPU6000Sensors()
 
   // switch to high clock rate
   MPU6000_SpiHighSpeed();
-  MPU6000_WriteReg(MPUREG_INT_PIN_CFG, MPU6000_ReadReg(MPUREG_INT_PIN_CFG) | 2); // enable I2C bypass: cleve
+  
+  //leave I2C bypass disabled for external HMC5883L Compass
+  //MPU6000_WriteReg(MPUREG_INT_PIN_CFG, MPU6000_ReadReg(MPUREG_INT_PIN_CFG) | 2); // enable I2C bypass: cleve
 }
 
 
