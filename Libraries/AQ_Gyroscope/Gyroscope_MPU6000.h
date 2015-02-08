@@ -26,7 +26,7 @@ int gyroRaw[3] = {0,0,0};
 #include <Platform_MPU6000.h>
 #include <Gyroscope.h>
 
-#define GYRO_CALIBRATION_TRESHOLD 60
+#define GYRO_CALIBRATION_TRESHOLD 90
 
 void initializeGyro() {
   float range = 2 * 2000.0;

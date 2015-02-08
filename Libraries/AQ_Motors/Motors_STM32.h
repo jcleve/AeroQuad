@@ -8,12 +8,8 @@
 ////////////////////////////////////////////////////////
 // definition section
 
-//#if defined (USE_400HZ_ESC)
-  #define PWM_FREQUENCY 500   // in Hz
-//#else
-  //#define PWM_FREQUENCY 300   // in Hz
-//#endif
-#define PWM_PERIODE     (1000000/PWM_FREQUENCY)
+int PWM_FREQUENCY = 400;   // in Hz
+int PWM_PERIODE;// = (1000000/PWM_FREQUENCY)
 
 #if defined(BOARD_aeroquad32)
 static byte __attribute__((unused)) stm32_motor_mapping[] = {
@@ -69,6 +65,7 @@ static int _stm32_motor_number;
 
 void initializeMotors(byte numbers) {
  
+  PWM_PERIODE = (1000000/PWM_FREQUENCY);
   int motor;
   
   if (flightConfigType == TRI) {

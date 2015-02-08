@@ -901,6 +901,9 @@ void setup() {
   }
   
   initPlatform();
+  #ifdef AeroQuadSTM32
+    PWM_FREQUENCY = fastLoopSleepingDelay == 2000 ? 500 : 400;
+  #endif
   initializeMotors(LASTMOTOR);
   (*initializeReceiver[receiverTypeUsed])();
   
