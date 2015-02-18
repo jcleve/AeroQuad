@@ -365,7 +365,7 @@ void initHomeBase() {
     
     computeCurrentSpeed();
     
-    // evaluate if we need to switch to another mission possition point
+    // evaluate if we need to switch to another mission position point
     evaluateMissionPositionToReach();
     
     computeDistanceToDestination(missionPositionToReach);
