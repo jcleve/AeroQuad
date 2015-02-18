@@ -75,7 +75,7 @@
 #if defined (AutoLanding)
   void processAutoLandingStateFromReceiverCommand() {
     if (receiverCommand[AUX3] < 1750) {
-      if (altitudeHoldState != ALTPANIC ) {  // check for special condition with manditory override of Altitude hold
+      if (altitudeHoldState != ALTPANIC ) {  // check for special condition with mandatory override of Altitude hold
         if (isAutoLandingInitialized) {
           autoLandingState = BARO_AUTO_DESCENT_STATE;
           #if defined AltitudeHoldBaro
@@ -115,6 +115,8 @@
 
 
 #if defined (UseGPSNavigator)
+	
+	
   void processGpsNavigationStateFromReceiverCommand() {
     // Init home command
     if (motorArmed == OFF && 
@@ -126,8 +128,7 @@
       homePosition.longitude = currentPosition.longitude;
       homePosition.altitude = DEFAULT_HOME_ALTITUDE;
     }
-
-
+	
     if (receiverCommand[AUX2] < 1750) {  // Enter in execute mission state, if none, go back home, override the position hold
       if (!isGpsNavigationInitialized) {
         gpsRollAxisCorrection = 0;
@@ -146,11 +147,18 @@
         gpsRollAxisCorrection = 0;
         gpsPitchAxisCorrection = 0;
         gpsYawAxisCorrection = 0;
-  
-        positionHoldPointToReach.latitude = currentPosition.latitude;
-        positionHoldPointToReach.longitude = currentPosition.longitude;
-        positionHoldPointToReach.altitude = getBaroAltitude();
-        isPositionHoldInitialized = true;
+				
+		positionHoldPointToReach.latitude = currentPosition.latitude;
+		positionHoldPointToReach.longitude = currentPosition.longitude;
+		positionHoldPointToReach.altitude = getBaroAltitude();
+        isPositionHoldInitialized = true;	
+
+	    // initialize previous hold position variables
+	    // these values will be updated as position is held and the current position will be averaged with these values to provide some dampening
+		previousHoldPosition = currentPosition;	  
+		secondPreviousHoldPosition = currentPosition;	  
+		thirdPreviousHoldPosition = currentPosition;	  
+		fourthPreviousHoldPosition = currentPosition;
       }
   
       isGpsNavigationInitialized = false;  // disable navigation

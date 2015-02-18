@@ -60,6 +60,11 @@ struct gpsData gpsData; // This is accessed by the parser functions directly !
 #define RAD2DEG 57.2957795
 
 GeodeticPosition currentPosition;
+// Cleve 
+GeodeticPosition previousHoldPosition = GPS_INVALID_POSITION;
+GeodeticPosition secondPreviousHoldPosition = GPS_INVALID_POSITION;
+GeodeticPosition thirdPreviousHoldPosition = GPS_INVALID_POSITION;
+GeodeticPosition fourthPreviousHoldPosition = GPS_INVALID_POSITION;
 
 float cosLatitude = 0.7; // @ ~ 45 N/S, this will be adjusted to home loc
 
@@ -183,9 +188,15 @@ void updateGps() {
          gpsData.state = GPS_NOFIX; // make sure to lose detecting state (state may not have been updated by parser)
       }
       gpsData.idlecount=0;
-      currentPosition.latitude=gpsData.lat;
-      currentPosition.longitude=gpsData.lon;
-      currentPosition.altitude=gpsData.height;
+	    
+      currentPosition.latitude =  (gpsData.lat + previousHoldPosition.latitude + secondPreviousHoldPosition.latitude + thirdPreviousHoldPosition.latitude + fourthPreviousHoldPosition.latitude) / 5;
+      currentPosition.longitude = (gpsData.lon + previousHoldPosition.longitude + secondPreviousHoldPosition.longitude + thirdPreviousHoldPosition.longitude + fourthPreviousHoldPosition.longitude) / 5;
+      currentPosition.altitude = gpsData.height;
+	  
+	  fourthPreviousHoldPosition = thirdPreviousHoldPosition;
+	  thirdPreviousHoldPosition = secondPreviousHoldPosition;
+	  secondPreviousHoldPosition = previousHoldPosition;
+	  previousHoldPosition = currentPosition;
     }
   }
 
