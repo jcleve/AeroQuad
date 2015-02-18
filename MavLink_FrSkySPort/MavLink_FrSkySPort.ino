@@ -173,16 +173,19 @@ void loop()  {
 
 
 void _MavLink_receive() { 
+  
   mavlink_message_t msg;
   mavlink_status_t status;
 
   while(_MavLinkSerial.available()) 
   { 
     uint8_t c = _MavLinkSerial.read();
+    //_debugSerial.println(c);
     if(mavlink_parse_char(MAVLINK_COMM_0, c, &msg, &status)) 
     {
       switch(msg.msgid)
       {
+        _debugSerial.println(msg.msgid);
       case MAVLINK_MSG_ID_HEARTBEAT:  // 0
         ap_base_mode = (mavlink_msg_heartbeat_get_base_mode(&msg) & 0x80) > 7;
         ap_custom_mode = mavlink_msg_heartbeat_get_custom_mode(&msg);
@@ -216,7 +219,7 @@ void _MavLink_receive() {
         if(temp_cell_count > ap_cell_count)
           ap_cell_count = temp_cell_count;
         break;
-      case MAVLINK_MSG_ID_GLOBAL_POSITION_INT:   // 24
+      case MAVLINK_MSG_ID_GLOBAL_POSITION_INT:   // 33
         //ap_fixtype = mavlink_msg_gps_raw_int_get_fix_type(&msg);                               // 0 = No GPS, 1 =No Fix, 2 = 2D Fix, 3 = 3D Fix
         //ap_sat_visible =  mavlink_msg_gps_raw_int_get_satellites_visible(&msg);          // numbers of visible satelites
         //ap_hdop = mavlink_msg_gps_raw_int_get_eph(&msg);                // GPS H.DOP 
@@ -232,13 +235,13 @@ void _MavLink_receive() {
         //{
         //  ap_gps_speed = 0;  
         //}
-#ifdef DEBUG_GPS_RAW    
-        _debugSerial.println("GPS RAW");
-        
+        _debugSerial.println("GPS RAW");        
         _debugSerial.println(ap_latitude);
         _debugSerial.println(ap_longitude);
         _debugSerial.println(ap_gps_altitude);
-        _debugSerial.println(ap_heading);                           
+        _debugSerial.println(ap_heading);  
+#ifdef DEBUG_GPS_RAW    
+                                 
 #endif
         break;
       case MAVLINK_MSG_ID_RAW_IMU:   // 27
