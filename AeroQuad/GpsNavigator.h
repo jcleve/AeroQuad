@@ -346,7 +346,7 @@ void initHomeBase() {
 	  
 	  if(distanceToDestination > MIN_DISTANCE_TO_HOLD)
 	  {
-        computeRollPitchCraftAxisCorrection();
+		computeRollPitchCraftAxisCorrection();
 	  }
 	  else{
 		gpsRollAxisCorrection = 0;
