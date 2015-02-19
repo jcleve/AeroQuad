@@ -82,12 +82,17 @@ void initHomeBase() {
     10000       = 111m
   */
   
-  #define MIN_DISTANCE_TO_REACHED 2000
+  
+  //TODO: cleve review these numbers
+  #define MAX_DISTANCE_TO_REACHED 2000
+  
+  // Only correct position if I'm more than 2.5 meters from the hold point
+  #define MIN_DISTANCE_TO_HOLD = 250
 
-  #define MAX_POSITION_HOLD_CRAFT_ANGLE_CORRECTION 300.0
-  #define POSITION_HOLD_SPEED 300.0  
-  #define MAX_NAVIGATION_ANGLE_CORRECTION 300.0
-  #define NAVIGATION_SPEED 600.0 
+  #define MAX_POSITION_HOLD_CRAFT_ANGLE_CORRECTION 250.0 //300.0
+  #define POSITION_HOLD_SPEED 250.0 //300.0  
+  #define MAX_NAVIGATION_ANGLE_CORRECTION 250.0 //300.0
+  #define NAVIGATION_SPEED 250.0 //600.0 
   
   #define MAX_YAW_AXIS_CORRECTION 200.0  
     
@@ -133,7 +138,7 @@ void initHomeBase() {
       waypointIndex++;
     }
     
-    if (waypointIndex < MAX_WAYPOINTS && distanceToDestination < MIN_DISTANCE_TO_REACHED) {
+    if (waypointIndex < MAX_WAYPOINTS && distanceToDestination < MAX_DISTANCE_TO_REACHED) {
       waypointIndex++;
     }
     
@@ -245,6 +250,7 @@ void initHomeBase() {
     rollSpeedDesired = constrain(rollSpeedDesired, -maxSpeedToDestination, maxSpeedToDestination);
     pitchSpeedDesired = constrain(pitchSpeedDesired, -maxSpeedToDestination, maxSpeedToDestination);
     
+	//todo: explore variable P term?
     int tempGpsRollAxisCorrection = updatePID(rollSpeedDesired, currentSpeedRoll, &PID[GPSROLL_PID_IDX]);
     int tempGpsPitchAxisCorrection = updatePID(pitchSpeedDesired, currentSpeedPitch, &PID[GPSPITCH_PID_IDX]);
 
@@ -323,24 +329,29 @@ void initHomeBase() {
    * Process position hold
    */
   void processPositionHold() {
-    
     if (haveNewGpsPosition()) {
-      computeNewPosition();
+	  computeNewPosition();
       clearNewGpsPosition();
     }
     else {
-      computeEstimatedPosition();
-    }    
+	  computeEstimatedPosition();
+    }        
+	
+	  computeCurrentSpeed();    
+      computeDistanceToDestination(positionHoldPointToReach);
     
-    computeCurrentSpeed();
-    
-    computeDistanceToDestination(positionHoldPointToReach);
-    
-    // evaluate the flight behavior to adopt
-    maxSpeedToDestination = POSITION_HOLD_SPEED;
-    maxCraftAngleCorrection = MAX_POSITION_HOLD_CRAFT_ANGLE_CORRECTION;
-
-    computeRollPitchCraftAxisCorrection();
+      // evaluate the flight behavior to adopt
+      maxSpeedToDestination = POSITION_HOLD_SPEED;
+      maxCraftAngleCorrection = MAX_POSITION_HOLD_CRAFT_ANGLE_CORRECTION;
+	  
+	  if(distanceToDestination > MIN_DISTANCE_TO_HOLD)
+	  {
+        computeRollPitchCraftAxisCorrection();
+	  }
+	  else{
+		gpsRollAxisCorrection = 0;
+        gpsPitchAxisCorrection = 0;        
+	  }
 
     gpsYawAxisCorrection = 0;  
   }
@@ -350,7 +361,7 @@ void initHomeBase() {
    */
   void processNavigation() {
     
-    if (distanceToDestination < MIN_DISTANCE_TO_REACHED) {
+    if (distanceToDestination < MAX_DISTANCE_TO_REACHED) {
       processPositionHold();
       evaluateMissionPositionToReach();
       return;
@@ -385,8 +396,7 @@ void initHomeBase() {
    * Compute everything need to make adjustment to the craft attitude to go to the point to reach
    */
   void processGpsNavigation() {
-
-    if (haveAGpsLock()) {
+	if (haveAGpsLock()) {
       
       if (navigationState == ON) {
         processNavigation();
