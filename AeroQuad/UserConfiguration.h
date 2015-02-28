@@ -99,7 +99,7 @@
 // *******************************************************************************************************************************
 // GPS Options
 // *******************************************************************************************************************************
-#define UseGPS		        // Enables GPS (for mega v2.0/v2.1 on Serial1 & AeroQuad32 on Serial2)
+#define UseGPS		        // Enables GPS (for mega v2.0/v2.1 on Serial1 (confirmed by cleve Serial1) & AeroQuad32 on Serial2)
 #define UseGPSNavigator
 #define UseGPSUBLOX
 
@@ -125,7 +125,7 @@
 // *******************************************************************************************************************************
 //#define NormalReceiver	// This does nothing really, but it indicates users that they don't have to define other options here if they have a normal receiver
 //#define RemotePCReceiver	// EXPERIMENTAL Use PC as transmitter via serial communicator with XBEE
-#define ReceiverSBUS		// Use a Futaba sBUS RX, connect sBUS data line via an inverter (see wiki) to Serial2 RX, supports up to 8 channels on v2 and STM32 boards
+#define ReceiverSBUS		// Use a Futaba sBUS RX, connect sBUS data line via an inverter (see wiki) to Serial3 (confirmed by cleve Serial3) RX, supports up to 8 channels on v2 and STM32 boards
 //define ReceiverPPM		// Use a PPM receiver
 //#define ReceiverHWPPM		// Use a PPM receiver with HW timer (less jitter on channel values than PPM), needs a HW modification (see wiki)
 
@@ -157,8 +157,9 @@
 //#define MavLink                 // Enables the MavLink protocol
 //#define MAV_SYSTEM_ID 100	// Needs to be enabled when using MavLink, used to identify each of your copters using MavLink
 				// If you've only got one, leave the default value unchanged, otherwise make sure that each copter has a different ID 
+#define OpenLogDebug				
 
-//#define CONFIG_BAUDRATE 57600   // overrides default baudrate for serial port (Configurator/MavLink/WirelessTelemetry)
+#define CONFIG_BAUDRATE 115200   // overrides default baudrate for serial port (Configurator/MavLink/WirelessTelemetry)
 
 //
 // *******************************************************************************************************************************
