@@ -228,6 +228,8 @@ void reportVehicleState();
     int missionNbPoint = 0;
     int gpsRollAxisCorrection = 0;
     int gpsPitchAxisCorrection = 0;
+	int gpsRollAxisCorrection2 = 0;
+    int gpsPitchAxisCorrection2 = 0;
     int gpsYawAxisCorrection = 0;
     boolean isPositionHoldInitialized = false;
     boolean isGpsNavigationInitialized = false;
@@ -241,6 +243,10 @@ void reportVehicleState();
       GPS_INVALID_POSITION, GPS_INVALID_POSITION, GPS_INVALID_POSITION, GPS_INVALID_POSITION};
       
     GeodeticPosition positionHoldPointToReach = GPS_INVALID_POSITION;
+	float holdLatRad = 0.0;
+	float holdLonRad = 0.0;
+	float currentLatRad = 0.0;
+	float currentLonRad = 0.0;
     
     void evaluateMissionPositionToReach();
     void processGpsNavigation();

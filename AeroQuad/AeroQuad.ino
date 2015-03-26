@@ -44,10 +44,6 @@
   #error "AutoLanding NEED AltitudeHoldBaro and AltitudeHoldRangeFinder defined"
 #endif
 
-#if defined(ReceiverSBUS) && defined(SlowTelemetry)
-  #error "Receiver SWBUS and SlowTelemetry are in conflict for Seria2, they can't be used together"
-#endif
-
 #if defined (CameraTXControl) && !defined (CameraControl)
   #error "CameraTXControl need to have CameraControl defined"
 #endif 
@@ -365,7 +361,7 @@
 //********************************************************
 //****************** SERIAL PORT DECLARATION *************
 //********************************************************
-#if defined(WirelessTelemetry) 
+#if defined(WirelessTelemetry) || defined(OpenLogDebug)
   #if defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
     #define SERIAL_PORT Serial2
   #else    // force 328p to use the normal port
@@ -644,7 +640,7 @@ void process10HzTask2() {
 
   // Listen for configuration commands and reports telemetry
   readSerialCommand();
-  sendSerialTelemetry();
+  sendSerialTelemetry();   
 }
 
 /*******************************************************************
