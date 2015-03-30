@@ -223,7 +223,7 @@ void updateGps() {
 }
 
 boolean haveAGpsLock() {
-  return (gpsData.state > GPS_NOFIX) && (gpsData.sats >= MIN_NB_SATS_IN_USE);
+  return (gpsData.state == GPS_FIX3DD) && (gpsData.sats >= MIN_NB_SATS_IN_USE);
 }
 
 long getCourse() {

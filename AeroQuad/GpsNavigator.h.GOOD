@@ -81,9 +81,8 @@ void initHomeBase() {
 #define GPS_SPEED_SMOOTH_VALUE 0.5
 #define GPS_COURSE_SMOOTH_VALUE 0.5
 #define POSITION_HOLD_RADIUS 100.0 // in cm
-#define MAX_POSITION_HOLD_CRAFT_ANGLE_CORRECTION 100.0
+#define MAX_POSITION_HOLD_CRAFT_ANGLE_CORRECTION 50.0
 #define POSITION_HOLD_SPEED 50.0  
-#define POSITION_HOLD_PLANE 500.0;
 
 #define MAX_YAW_AXIS_CORRECTION 200.0  
 
@@ -209,8 +208,8 @@ void computeCurrentSpeedInCmPerSec() {
   }
   else {
     // get the distance between this reading and the last
-    distanceToPreviousX = (float)(currentPosition.longitude - previousPosition.longitude);
-    distanceToPreviousY = (float)(currentPosition.latitude - previousPosition.latitude);
+    distanceToPreviousX = (float)(currentPosition.longitude - previousPosition.longitude) * cosLatitude * 1.113195;
+    distanceToPreviousY = (float)(currentPosition.latitude - previousPosition.latitude) * 1.113195;
     distanceToPrevious = sqrt(sq(distanceToPreviousY) + sq(distanceToPreviousX)); 
 
 
@@ -343,18 +342,16 @@ void computeRollPitchCraftAxisCorrection() {
   float y = cos(angleToWaypoint);  
 
   float maxSpeedRoll = (maxSpeedToDestination*x*((float)distanceToDestination)); 
-  float maxSpeedPitch = (maxSpeedToDestination*y*((float)distanceToDestination)); 
+  float maxSpeedPitch = (maxSpeedToDestination*y*((float)distanceToDestination));  
+
   maxSpeedRoll = constrain(maxSpeedRoll, -maxSpeedToDestination, maxSpeedToDestination);
   maxSpeedPitch = constrain(maxSpeedPitch, -maxSpeedToDestination, maxSpeedToDestination);  
-  
+
   gpsRollAxisCorrection = updatePID(maxSpeedRoll, currentSpeedRoll, &PID[GPSROLL_PID_IDX]);
   gpsPitchAxisCorrection = updatePID(maxSpeedPitch, currentSpeedPitch , &PID[GPSPITCH_PID_IDX]);  
-  
-  float weight = (distanceToDestination - POSITION_HOLD_RADIUS)/POSITION_HOLD_PLANE;
-  weight = constrain(weight, 0,1);
-  
-  gpsRollAxisCorrection = constrain(gpsRollAxisCorrection * weight, -maxCraftAngleCorrection, maxCraftAngleCorrection);
-  gpsPitchAxisCorrection = constrain(gpsPitchAxisCorrection * weight, -maxCraftAngleCorrection, maxCraftAngleCorrection);
+
+  gpsRollAxisCorrection = constrain(gpsRollAxisCorrection, -maxCraftAngleCorrection, maxCraftAngleCorrection);
+  gpsPitchAxisCorrection = constrain(gpsPitchAxisCorrection, -maxCraftAngleCorrection, maxCraftAngleCorrection);
 }
 
 /**
@@ -390,11 +387,11 @@ void processPositionHold()
   gpsYawAxisCorrection = 0;    
 
   // LOG
-//  LOG.print(micros());
-//  LOG.print(",");
-//  LOG.print(gpsData.fixtime);
-//  LOG.print(",");
-//  LOG.print(positionHoldPointToReach.latitude);
+  //LOG.print(micros());
+  //LOG.print(",");
+  //LOG.print(gpsData.fixtime);
+  //LOG.print(",");
+  //LOG.print(positionHoldPointToReach.latitude);
 //  LOG.print(",");
 //  LOG.print(positionHoldPointToReach.longitude);
 //  LOG.print(",");
@@ -417,7 +414,9 @@ void processPositionHold()
 //  LOG.print(distanceY);
 //  LOG.print(",");
 //  LOG.print(distanceToDestination);  
-//  LOG.print(",");  
+//  LOG.print(",");
+  //LOG.print(distanceToDestination2);
+  //LOG.print(",");
 //  LOG.print(trueNorthHeading);
 //  LOG.print(",");
 //  LOG.print(angleToWaypoint);
@@ -425,13 +424,19 @@ void processPositionHold()
 //  LOG.print(gpsRollAxisCorrection);
 //  LOG.print(",");
 //  LOG.print(gpsPitchAxisCorrection);
-//  LOG.print(",");      
-//  LOG.print(gpsData.idlecount);
-//  LOG.print(",");
-//  LOG.print(gpsData.speed);
-//  LOG.print(",");
-//  LOG.print(gpsData.state);
-//  LOG.println();
+  //LOG.print(",");
+  //  LOG.print(angleToWaypoint2);
+  //  LOG.print(",");
+  //  LOG.print(gpsRollAxisCorrection2);
+  //  LOG.print(",");
+  //  LOG.print(gpsPitchAxisCorrection2);
+  //  LOG.print(",");
+  //LOG.print(gpsData.idlecount);
+  //LOG.print(",");
+  //LOG.print(gpsData.speed);
+  //LOG.print(",");
+  //LOG.print(gpsData.state);
+  //LOG.println();
 }
 
 /**
@@ -446,7 +451,7 @@ void processGpsNavigation() {
     }
 
     if (positionHoldState == ON ) {
-      processPositionHold();         
+      processPositionHold();      
     }
     clearNewGpsPosition();   		
   }  

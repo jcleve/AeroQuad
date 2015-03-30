@@ -119,10 +119,15 @@ void ubloxParseData() {// uses publib vars
       switch (ubloxMessage.nav_status.gpsFix) {
         case 2: 
           gpsData.state = GPS_FIX2D;
-          break;
-		  
+          break;		  
         case 3:
-          gpsData.state = GPS_FIX3D;
+		  if(ubloxMessage.nav_status.flags & 0x01){
+			  gpsData.state = GPS_FIX3DD;
+			  gpsData.fixage = ubloxMessage.nav_status.flags;
+		  }
+		  else {
+			  gpsData.state = GPS_FIX3D;
+		  }          
           break;
 		  
         default:

@@ -154,14 +154,8 @@ void processGpsNavigationStateFromReceiverCommand() {
       // convert to radians here so we don't do it on each gpsNav loop
       holdLatRad = radians(positionHoldPointToReach.latitude);
       holdLonRad = radians(positionHoldPointToReach.longitude);
-
-      LOG.println("POSITION HOLD ENGAGED");
-      LOG.print("Holding lat: ");
-      LOG.print(positionHoldPointToReach.latitude);
-      LOG.print(" lon: ");
-      LOG.println(positionHoldPointToReach.longitude);
-	  
-	  isPositionHoldInitialized = true;
+      
+      isPositionHoldInitialized = true;
     }
 
     isGpsNavigationInitialized = false;  // disable navigation
@@ -179,8 +173,7 @@ void processGpsNavigationStateFromReceiverCommand() {
 
     gpsRollAxisCorrection = 0;
     gpsPitchAxisCorrection = 0;
-    gpsYawAxisCorrection = 0;
-    LOG.println("POSITION HOLD DIS-ENGAGED");
+    gpsYawAxisCorrection = 0;    
   }
 }
 #endif
