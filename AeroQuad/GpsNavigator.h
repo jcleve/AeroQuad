@@ -30,8 +30,16 @@
 
 // little wait to have a more precise fix of the current position since it's called after the first gps fix
 #define MIN_NB_GPS_READ_TO_INIT_HOME 20  
-byte countToInitHome = 0;
+#define MIN_DISTANCE_TO_REACHED 3000
+#define GPS_SPEED_SMOOTH_VALUE 0.5
+#define GPS_COURSE_SMOOTH_VALUE 0.5
+#define POSITION_HOLD_ORIGIN 100.0 // in cm
+#define MAX_POSITION_HOLD_CRAFT_ANGLE_CORRECTION 200.0
+#define POSITION_HOLD_SPEED 50.0  
+#define POSITION_HOLD_PLANE 200.0
+#define MAX_YAW_AXIS_CORRECTION 200.0  
 
+byte countToInitHome = 0;
 unsigned long previousFixTime = 0;
 
 boolean haveNewGpsPosition() {
@@ -44,6 +52,24 @@ void clearNewGpsPosition() {
 
 boolean isHomeBaseInitialized() {
   return homePosition.latitude != GPS_INVALID_ANGLE;
+}
+
+float HOLD_CORRECTION_EXP_CURVE_BASE = 0.0;
+float POSITION_HOLD_YINTERCEPT = 3.125;
+void calculateHoldCorrectionExpCurveBase()
+{
+  float base = MAX_POSITION_HOLD_CRAFT_ANGLE_CORRECTION/POSITION_HOLD_YINTERCEPT;
+  float exponent = 1/(POSITION_HOLD_PLANE-POSITION_HOLD_ORIGIN);
+  HOLD_CORRECTION_EXP_CURVE_BASE = pow(base, exponent);
+}
+
+float getHoldCorrectionExpCurveWeight(float distance) {
+  if(POSITION_HOLD_ORIGIN <= distance <= POSITION_HOLD_PLANE) {
+    float base = HOLD_CORRECTION_EXP_CURVE_BASE;
+    float exponent = distance-POSITION_HOLD_ORIGIN;
+    return POSITION_HOLD_YINTERCEPT * pow(base, exponent) / MAX_POSITION_HOLD_CRAFT_ANGLE_CORRECTION;
+  }
+  return 0;
 }
 
 void initHomeBase() {
@@ -65,6 +91,8 @@ void initHomeBase() {
     missionPositionToReach.latitude = homePosition.latitude;
     missionPositionToReach.longitude = homePosition.longitude;
     missionPositionToReach.altitude = homePosition.altitude;
+    
+    calculateHoldCorrectionExpCurveBase();
   }  
 }
 
@@ -77,15 +105,7 @@ void initHomeBase() {
  10000       = 111m
  */
 
-#define MIN_DISTANCE_TO_REACHED 3000
-#define GPS_SPEED_SMOOTH_VALUE 0.5
-#define GPS_COURSE_SMOOTH_VALUE 0.5
-#define POSITION_HOLD_RADIUS 100.0 // in cm
-#define MAX_POSITION_HOLD_CRAFT_ANGLE_CORRECTION 100.0
-#define POSITION_HOLD_SPEED 50.0  
-#define POSITION_HOLD_PLANE 500.0;
 
-#define MAX_YAW_AXIS_CORRECTION 200.0  
 
 GeodeticPosition previousPosition = GPS_INVALID_POSITION;
 
@@ -189,8 +209,8 @@ void getDistanceToHoldPosition(GeodeticPosition destination){
   angleToWaypoint = radians(angleToWaypoint);
 
   // log  
-  currentLat = currentPosition.latitude;
-  currentLon = currentPosition.longitude;  
+  //currentLat = currentPosition.latitude;
+  //currentLon = currentPosition.longitude;  
 }
 
 /**
@@ -300,9 +320,12 @@ float ModCrs(float crs) {
 float getBearing(float toLatRads, float toLonRads, float fromLatRads, float fromLonRads) {
   float x = sin(toLonRads - fromLonRads) * cos(toLatRads);
   float y = cos(fromLatRads) * sin(toLatRads) - sin(fromLatRads) * cos(toLatRads) * cos(toLonRads - fromLonRads);
-  float z = atan2(x, y);
-
-  return ModCrs(z);
+  float z = degrees(atan2(x, y)-trueNorthHeading);
+  if(z < 0)
+    z+=360;
+  //return ModCrs(z);
+  
+  return radians(z);
 }
 
 /**
@@ -311,34 +334,15 @@ float getBearing(float toLatRads, float toLonRads, float fromLatRads, float from
  */
 void computeRollPitchCraftAxisCorrection() {
 
-  //  angleToWaypoint2 = atan2(distanceX, distanceY)-abs(trueNorthHeading);
-  //  float tmpsin = sin(angleToWaypoint);
-  //  float tmpcos = cos(angleToWaypoint);
-  //
-  //  float maxSpeedRoll = (maxSpeedToDestination*tmpsin*((float)distanceToDestination)); 
-  //  float maxSpeedPitch = (maxSpeedToDestination*tmpcos*((float)distanceToDestination));
-  //
-  //  maxSpeedRoll = constrain(maxSpeedRoll, -maxSpeedToDestination, maxSpeedToDestination);
-  //  maxSpeedPitch = constrain(maxSpeedPitch, -maxSpeedToDestination, maxSpeedToDestination);
-  //
-  //  gpsRollAxisCorrection = updatePID(maxSpeedRoll, currentSpeedRoll, &PID[GPSROLL_PID_IDX]);
-  //  gpsPitchAxisCorrection = updatePID(maxSpeedPitch, currentSpeedPitch , &PID[GPSPITCH_PID_IDX]);
-  //
-  //  gpsRollAxisCorrection = constrain(gpsRollAxisCorrection, -maxCraftAngleCorrection, maxCraftAngleCorrection);
-  //  gpsPitchAxisCorrection = constrain(gpsPitchAxisCorrection, -maxCraftAngleCorrection, maxCraftAngleCorrection);
-
   // alternative method 
   //currentLonRad = radians(currentPosition.longitude);
   //currentLatRad = radians(currentPosition.latitude);
   //diffLon = currentLonRad - holdLonRad;
 
-  // POLAR COORDINATE SYSTEM
-
   // get angle between the orgin (hold point) and our current position
-  //  angleToWaypoint = getBearing(GPS2RAD * positionHoldPointToReach.latitude, GPS2RAD * positionHoldPointToReach.longitude, 
+  //angleToWaypoint = getBearing(GPS2RAD * positionHoldPointToReach.latitude, GPS2RAD * positionHoldPointToReach.longitude, 
   //    GPS2RAD * currentPosition.latitude, GPS2RAD * currentPosition.longitude)-trueNorthHeading;  
 
-  // Transform polar coordinates into Cartesian coordinates
   float x = sin(angleToWaypoint);
   float y = cos(angleToWaypoint);  
 
@@ -349,12 +353,14 @@ void computeRollPitchCraftAxisCorrection() {
   
   gpsRollAxisCorrection = updatePID(maxSpeedRoll, currentSpeedRoll, &PID[GPSROLL_PID_IDX]);
   gpsPitchAxisCorrection = updatePID(maxSpeedPitch, currentSpeedPitch , &PID[GPSPITCH_PID_IDX]);  
+    
+  // this works pretty well.
+  float weight = constrain((distanceToDestination - POSITION_HOLD_ORIGIN)/POSITION_HOLD_PLANE, 0, 1);
   
-  float weight = (distanceToDestination - POSITION_HOLD_RADIUS)/POSITION_HOLD_PLANE;
-  weight = constrain(weight, 0,1);
+  //float weight = constrain(getHoldCorrectionExpCurveWeight(distanceToDestination),0,1);
   
   gpsRollAxisCorrection = constrain(gpsRollAxisCorrection * weight, -maxCraftAngleCorrection, maxCraftAngleCorrection);
-  gpsPitchAxisCorrection = constrain(gpsPitchAxisCorrection * weight, -maxCraftAngleCorrection, maxCraftAngleCorrection);
+  gpsPitchAxisCorrection = constrain(gpsPitchAxisCorrection * weight, -maxCraftAngleCorrection, maxCraftAngleCorrection); 
 }
 
 /**
@@ -376,15 +382,15 @@ void processPositionHold()
   getDistanceToHoldPosition(positionHoldPointToReach);
 
   // only correct our position if we are adequately removed from hold point
-  if(distanceToDestination > POSITION_HOLD_RADIUS){
+  if(distanceToDestination > POSITION_HOLD_ORIGIN){
     computeRollPitchCraftAxisCorrection();
   }
   else {
     // we are adequately close to the hold point, so do not correct position
     gpsRollAxisCorrection = 0;
     gpsPitchAxisCorrection = 0;
-    gpsRollAxisCorrection2 = 0;
-    gpsPitchAxisCorrection2 = 0;
+    //gpsRollAxisCorrection2 = 0;
+    //gpsPitchAxisCorrection2 = 0;
   }
 
   gpsYawAxisCorrection = 0;    
@@ -425,6 +431,10 @@ void processPositionHold()
 //  LOG.print(gpsRollAxisCorrection);
 //  LOG.print(",");
 //  LOG.print(gpsPitchAxisCorrection);
+//  LOG.print(",");
+//  LOG.print(gpsRollAxisCorrection2);
+//  LOG.print(",");
+//  LOG.print(gpsPitchAxisCorrection2);
 //  LOG.print(",");      
 //  LOG.print(gpsData.idlecount);
 //  LOG.print(",");
@@ -451,6 +461,10 @@ void processGpsNavigation() {
     clearNewGpsPosition();   		
   }  
 }
+
+
+
+
 #endif
 
 
