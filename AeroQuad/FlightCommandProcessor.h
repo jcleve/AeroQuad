@@ -32,17 +32,17 @@
     if (!(vehicleState & BARO_DETECTED)) {
       return false;
     }
-    #if defined (UseGPS)
-      if ((receiverCommand[receiverChannelMap[AUX1]] < 1666) || (receiverCommand[receiverChannelMap[AUX2]] < 1666)) {
-        return true;
-      }
-      return false;
-    #else
+//    #if defined (UseGPS)
+//      if ((receiverCommand[receiverChannelMap[AUX1]] < 1666) || (receiverCommand[receiverChannelMap[AUX2]] < 1666)) {
+//        return true;
+//      }
+//      return false;
+//    #else
       if (receiverCommand[receiverChannelMap[AUX1]] < 1666) {
         return true;
       }
       return false;
-    #endif
+//    #endif
   }
   
   boolean isVelocityHoldStateEnabledByUser() {
