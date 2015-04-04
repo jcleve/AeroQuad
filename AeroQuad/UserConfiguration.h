@@ -15,7 +15,7 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program. If not, see <http://www.gnu.org/licenses/>.
+  along with this program. If not, see <http://www.gnu.org/licenses/>
 */
 
 /****************************************************************************
@@ -30,24 +30,20 @@
 // Select which hardware you wish to use with the AeroQuad Flight Software
 
 // 328p processor
-//#define AeroQuad_v1         // Arduino Uno with AeroQuad Shield v1.7 and below
-//#define AeroQuad_v1_IDG     // Arduino Uno with AeroQuad Shield v1.7 and below using IDG yaw gyro
 //#define AeroQuad_v18        // Arduino Uno with AeroQuad Shield v1.8 or 1.9
 //#define AeroQuad_Mini       // Arduino Pro Mini with AeroQuad Mini Shield v1.0
-//#define AeroQuad_Wii        // Arduino Uno with Wii Sensors and AeroQuad Shield v1.x
-//#define AeroQuad_Paris_v3   // Define along with either AeroQuad_Wii to include specific changes for MultiWiiCopter Paris v3.0 board
+//#define MWCFlip15           // MWCFlip1.5 board from ready to fly quad -> http://witespyquad.gostorego.com/flight-controllers/flip-mwc-flight-controller.html
 
 // Mega processor
-//#define AeroQuadMega_v1     // Arduino Mega with AeroQuad Shield v1.7 and below
 //#define AeroQuadMega_v2     // Arduino Mega with AeroQuad Shield v2.0
-#define AeroQuadMega_v21	// Arduino Mega with AeroQuad Shield v2.1
-//#define AeroQuadMega_Wii    // Arduino Mega with Wii Sensors and AeroQuad Shield v2.x
-//#define ArduCopter          // ArduPilot Mega (APM) with Oilpan Sensor Board
-//#define AeroQuadMega_CHR6DM // Clean Arduino Mega with CHR6DM as IMU/heading ref.
-//#define APM_OP_CHR6DM       // ArduPilot Mega with CHR6DM as IMU/heading ref., Oilpan for barometer (just uncomment AltitudeHoldBaro for baro), and voltage divider
+#define AeroQuadMega_v21    // Arduino Mega with AeroQuad Shield v2.1
+//#define MWCProEz30          // MWC Prop Ez3.0 from ready to fly quad -> http://witespyquad.gostorego.com/flight-controllers/multiwii-pro-ez3-0-flight-controller-w-gps-option.html
 
 // STM32 processor
-//#define AeroQuadSTM32        // Baloo board
+//#define AeroQuadSTM32
+//#define Naze32
+//#define Naze32Full
+//#define AfroMini
 
 
 /****************************************************************************
@@ -56,33 +52,13 @@
 // Use only one of the following definitions
 //For more information please refer to http://aeroquad.com/showwiki.php?title=Flight+Configurations
 
-#define quadXConfig
-//#define quadPlusConfig
-//#define hexPlusConfig
-//#define hexXConfig      
-//#define triConfig
-//#define quadY4Config
-//define hexY6Config
-//#define octoX8Config
-//#define octoPlusConfig		// EXPERIMENTAL: not completely re-tested
-//#define octoXConfig			// EXPERIMENTAL: not completely re-tested
-
 
 // MOTOR ADVANCE CONFIG SECTION
 //#define CHANGE_YAW_DIRECTION	// only needed if you want to reverse the yaw correction direction
 
-#define USE_400HZ_ESC			// For ESC that support 400Hz update rate, ESC OR PLATFORM MAY NOT SUPPORT IT
 
-
-//
-// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-// In the 3.0 code the motor numbering has changed to simplify motor configuration.
-// Please refer to our wiki (http://aeroquad.com/showwiki.php?title=Flight+Configurations)
-// or the .h files in ..\Libraries\AQ_FlightControlProcessor to see the new numbering for your flight model
-// the OLD_MOTOR_NUMBERING is compatible  with the 2.x versions of the AeroQuad code and will not need re-ordering to work
-// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//#define OLD_MOTOR_NUMBERING	// Uncomment this for old motor numbering setup, FOR QUAD +/X MODE ONLY
-
+// define wireless communication on serial 0 at 57600
+//#define USE_WIRELESS_COMMUNICATION
 //
 // *******************************************************************************************************************************
 // Optional Sensors
@@ -99,9 +75,9 @@
 // *******************************************************************************************************************************
 // GPS Options
 // *******************************************************************************************************************************
-#define UseGPS		        // Enables GPS (for mega v2.0/v2.1 on Serial1 (confirmed by cleve Serial1) & AeroQuad32 on Serial2)
-#define UseGPSNavigator
-#define UseGPSUBLOX
+//#define UseGPS		        // Enables GPS (for mega v2.0/v2.1 on Serial1 (confirmed by cleve Serial1) & AeroQuad32 on Serial2)
+//#define UseGPSNavigator
+//#define UseGPSUBLOX
 
 // Device specific settings
 //#define UseGPSMTKBINARY   // Set MTK devices to binary protocol (only DiyDrones MTK1.6 protocol supported)
@@ -129,22 +105,10 @@
 //define ReceiverPPM		// Use a PPM receiver
 //#define ReceiverHWPPM		// Use a PPM receiver with HW timer (less jitter on channel values than PPM), needs a HW modification (see wiki)
 
-// You need to select one of these channel order definitions for PPM receiver
-//#define SKETCH_SERIAL_SUM_PPM SERIAL_SUM_PPM_1	        //For Graupner/Spektrum (DEFAULT)
-//#define SKETCH_SERIAL_SUM_PPM SERIAL_SUM_PPM_2	//For Robe/Hitec/Futaba/Turnigy9X+Er9X
-//#define SKETCH_SERIAL_SUM_PPM SERIAL_SUM_PPM_3	//For some Hitec/Sanwa/Others
-
 //#define UseAnalogRSSIReader	// Reads RSSI for receiver failsafe, NEEDS A RECEIVER WITH FAILSAVE CONNECTED ON PIN A6 OF THE SHIELD
 //#define UseEzUHFRSSIReader	// Reads RSSI and Signal quality on channel 7(RSSI) and 8(Signal Quality) of the EzUHF receiver (Receiver have to be configures this way)
 //#define UseSBUSRSSIReader		
 
-//
-// *******************************************************************************************************************************
-// Define how many channels are connected from your R/C receiver
-// *******************************************************************************************************************************
-//#define LASTCHANNEL 6
-#define LASTCHANNEL 8
-//#define LASTCHANNEL 10 // EXPERIMENTAL only tested with ReceiverSBUS on AQ32, test extensively before using other boards/receiver types
 
 
 //

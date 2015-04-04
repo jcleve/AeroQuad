@@ -21,15 +21,25 @@
 #ifndef _AQ_PROCESS_FLIGHT_CONTROL_VARIABLE_H_
 #define _AQ_PROCESS_FLIGHT_CONTROL_VARIABLE_H_
 
-#ifdef CHANGE_YAW_DIRECTION
-  #define YAW_DIRECTION -1
-#else
-  #define YAW_DIRECTION 1
-#endif
+
+int yawDirection = 1;
+
+#include <Motors.h>
 
 int motorAxisCommandRoll = 0;
 int motorAxisCommandPitch = 0;
 int motorAxisCommandYaw = 0;
+
+#if defined (__AVR_ATmega328P__) || defined(__AVR_ATmegaUNO__)
+  int motorMaxCommand[6] = {0,0,0,0,0,0};
+  int motorMinCommand[6] = {0,0,0,0,0,0};
+  int motorConfiguratorCommand[6] = {0,0,0,0,0,0};
+#else
+  int motorMaxCommand[8] = {0,0,0,0,0,0,0,0};
+  int motorMinCommand[8] = {0,0,0,0,0,0,0,0};
+  int motorConfiguratorCommand[8] = {0,0,0,0,0,0,0,0};
+#endif
+
 
 #endif  // #define _AQ_PROCESS_FLIGHT_CONTROL_VARIABLE_H_
 

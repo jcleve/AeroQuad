@@ -153,14 +153,8 @@ byte MPU6000_ReadReg(int addr)
   return data;
 }
 
-bool initializeMPU6000SensorsDone = false;
 void initializeMPU6000Sensors()
 {
-  if(initializeMPU6000SensorsDone) {
-	return;
-  }
-  initializeMPU6000SensorsDone = true;
-
   MPU6000_SpiLowSpeed();
 
   unsigned char val;
@@ -192,15 +186,15 @@ void initializeMPU6000Sensors()
 
   // FS & DLPF   FS=1000º/s, DLPF = 42Hz (low pass filter)
   MPU6000_WriteReg(MPUREG_CONFIG, BITS_DLPF_CFG_42HZ);
-  MPU6000_WriteReg(MPUREG_GYRO_CONFIG,BITS_FS_1000DPS);  // Gyro scale 1000º/s
+  MPU6000_WriteReg(MPUREG_GYRO_CONFIG,BITS_FS_2000DPS);  // Gyro scale 2000º/s
   MPU6000_WriteReg(MPUREG_ACCEL_CONFIG,0x08);   // Accel scale +-4g (4096LSB/g)
-
 
   // switch to high clock rate
   MPU6000_SpiHighSpeed();
   
-  
-  //MPU6000_WriteReg(MPUREG_INT_PIN_CFG, MPU6000_ReadReg(MPUREG_INT_PIN_CFG) | 2); // enable I2C bypass: cleve
+  #if defined (__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
+	//MPU6000_WriteReg(MPUREG_INT_PIN_CFG, MPU6000_ReadReg(MPUREG_INT_PIN_CFG) | 2); // enable I2C bypass
+  #endif
 }
 
 
@@ -227,28 +221,6 @@ void readMPU6000Sensors()
     spiMPU6000.Read(MPUREG_ACCEL_XOUT_H, MPU6000.rawByte, sizeof(MPU6000));
     MPU6000SwapData(MPU6000.rawByte, sizeof(MPU6000));
   #endif
-}
-
-int readMPU6000Count=0;
-int readMPU6000AccelCount=0;
-int readMPU6000GyroCount=0;
-
-void readMPU6000Accel()
-{
-  readMPU6000AccelCount++;
-  if(readMPU6000AccelCount != readMPU6000Count) {
-    readMPU6000Sensors();
-    readMPU6000Count++;
-  }
-}
-
-void readMPU6000Gyro()
-{
-  readMPU6000GyroCount++;
-  if(readMPU6000GyroCount != readMPU6000Count) {
-    readMPU6000Sensors();
-    readMPU6000GyroCount++;
-  }
 }
 
 #endif

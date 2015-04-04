@@ -27,155 +27,177 @@
 #define LOG Serial2
 
 
-#if defined (AltitudeHoldBaro) || defined (AltitudeHoldRangeFinder)
-boolean isPositionHoldEnabledByUser() {
-#if defined (UseGPSNavigator)
-  if ((receiverCommand[AUX1] < 1750) || (receiverCommand[AUX2] < 1750)) {
-    return true;
-  }
-  return false;
-#else
-  if (receiverCommand[AUX1] < 1750) {
-    return true;
-  }
-  return false;
-#endif
-}
-#endif
-
-#if defined AltitudeHoldBaro || defined AltitudeHoldRangeFinder
-void processAltitudeHoldStateFromReceiverCommand() {
-  if (isPositionHoldEnabledByUser()) {
-    if (altitudeHoldState != ALTPANIC ) {  // check for special condition with manditory override of Altitude hold
-      if (!isAltitudeHoldInitialized) {
-#if defined AltitudeHoldBaro
-        baroAltitudeToHoldTarget = getBaroAltitude();
-        PID[BARO_ALTITUDE_HOLD_PID_IDX].integratedError = 0;
-        PID[BARO_ALTITUDE_HOLD_PID_IDX].lastError = baroAltitudeToHoldTarget;
-#endif
-#if defined AltitudeHoldRangeFinder
-        sonarAltitudeToHoldTarget = rangeFinderRange[ALTITUDE_RANGE_FINDER_INDEX];
-        PID[SONAR_ALTITUDE_HOLD_PID_IDX].integratedError = 0;
-        PID[SONAR_ALTITUDE_HOLD_PID_IDX].lastError = sonarAltitudeToHoldTarget;
-#endif
-        altitudeHoldThrottle = receiverCommand[THROTTLE];
-        isAltitudeHoldInitialized = true;
-      }
-      altitudeHoldState = ON;
+#if defined (AltitudeHoldBaro)
+  boolean isAltitudeHoldEnabledByUser() {
+    if (!(vehicleState & BARO_DETECTED)) {
+      return false;
     }
-  } 
-  else {
-    isAltitudeHoldInitialized = false;
-    altitudeHoldState = OFF;
+    #if defined (UseGPS)
+      if ((receiverCommand[receiverChannelMap[AUX1]] < 1666) || (receiverCommand[receiverChannelMap[AUX2]] < 1666)) {
+        return true;
+      }
+      return false;
+    #else
+      if (receiverCommand[receiverChannelMap[AUX1]] < 1666) {
+        return true;
+      }
+      return false;
+    #endif
   }
-}
+  
+  boolean isVelocityHoldStateEnabledByUser() {
+
+    if (!(vehicleState & BARO_DETECTED)) {
+      if (receiverCommand[receiverChannelMap[AUX1]] < 1666) {
+        return true;
+      }
+      return false;
+    }
+    else if (receiverCommand[receiverChannelMap[AUX1]] > 1333 && receiverCommand[receiverChannelMap[AUX1]] < 1666 ) {
+      return true;
+    }
+    return false;
+  }
+  
+  void processAltitudeHoldStateFromReceiverCommand() {
+    
+    if (isVelocityHoldStateEnabledByUser()) {
+      if (!isVelocityHoldInitialisez) {
+        if (!inFlight) {
+          altitudeHoldThrottle = MIDCOMMAND;
+        }
+        else {
+          altitudeHoldThrottle = receiverCommand[receiverChannelMap[THROTTLE]];
+        }
+        isAltitudeHoldInitialized = false;
+        isVelocityHoldInitialisez = true;
+      }
+      altitudeHoldState = VELOCITY_HOLD_STATE;
+    } 
+    else if (isAltitudeHoldEnabledByUser()) {
+      if (!isAltitudeHoldInitialized) {
+        baroAltitudeToHoldTarget = estimatedAltitude;
+        PID[BARO_ALTITUDE_HOLD_PID_IDX].lastError = baroAltitudeToHoldTarget;
+        if (!inFlight) {
+          altitudeHoldThrottle = MIDCOMMAND;
+        }
+        else {
+          altitudeHoldThrottle = receiverCommand[receiverChannelMap[THROTTLE]];
+        }
+        isAltitudeHoldInitialized = true;
+        isVelocityHoldInitialisez = false;
+      }
+      altitudeHoldState = ALTITUDE_HOLD_STATE;
+    }
+    else {
+      isAltitudeHoldInitialized = false;
+      isVelocityHoldInitialisez = false;
+      altitudeHoldState = OFF;
+    }
+  }
 #endif
 
 
 #if defined (AutoLanding)
-void processAutoLandingStateFromReceiverCommand() {
-  if (receiverCommand[AUX3] < 1750) {
-    if (altitudeHoldState != ALTPANIC ) {  // check for special condition with manditory override of Altitude hold
-      if (isAutoLandingInitialized) {
-        autoLandingState = BARO_AUTO_DESCENT_STATE;
-#if defined AltitudeHoldBaro
-        baroAltitudeToHoldTarget = getBaroAltitude();
-        PID[BARO_ALTITUDE_HOLD_PID_IDX].integratedError = 0;
-        PID[BARO_ALTITUDE_HOLD_PID_IDX].lastError = baroAltitudeToHoldTarget;
-#endif
-#if defined AltitudeHoldRangeFinder
-        sonarAltitudeToHoldTarget = rangeFinderRange[ALTITUDE_RANGE_FINDER_INDEX];
-        PID[SONAR_ALTITUDE_HOLD_PID_IDX].integratedError = 0;
-        PID[SONAR_ALTITUDE_HOLD_PID_IDX].lastError = sonarAltitudeToHoldTarget;
-#endif
-        altitudeHoldThrottle = receiverCommand[THROTTLE];
-        isAutoLandingInitialized = true;
+  void processAutoLandingStateFromReceiverCommand() {
+    if (receiverCommand[AUX3] < 1750) {
+      if (altitudeHoldState != ALTPANIC ) {  // check for special condition with manditory override of Altitude hold
+        if (isAutoLandingInitialized) {
+          autoLandingState = BARO_AUTO_DESCENT_STATE;
+          #if defined AltitudeHoldBaro
+            baroAltitudeToHoldTarget = getBaroAltitude();
+            PID[BARO_ALTITUDE_HOLD_PID_IDX].integratedError = 0;
+            PID[BARO_ALTITUDE_HOLD_PID_IDX].lastError = baroAltitudeToHoldTarget;
+          #endif
+          altitudeHoldThrottle = receiverCommand[receiverChannelMap[THROTTLE]];
+          isAutoLandingInitialized = true;
+        }
+        altitudeHoldState = ON;
       }
-      altitudeHoldState = ON;
+    }
+    else {
+      autoLandingState = OFF;
+      autoLandingThrottleCorrection = 0;
+      isAutoLandingInitialized = false;
+      #if defined (UseGPSNavigator)
+        if ((receiverCommand[receiverChannelMap[AUX1]] > 1750) && (receiverCommand[receiverChannelMap[AUX2]] > 1750)) {
+          altitudeHoldState = OFF;
+          isAltitudeHoldInitialized = false;
+        }
+      #else
+        if (receiverCommand[receiverChannelMap[AUX1]] > 1750) {
+          altitudeHoldState = OFF;
+          isAltitudeHoldInitialized = false;
+        }
+      #endif
     }
   }
-  else {
-    autoLandingState = OFF;
-    autoLandingThrottleCorrection = 0;
-    isAutoLandingInitialized = false;
-#if defined (UseGPSNavigator)
-    if ((receiverCommand[AUX1] > 1750) && (receiverCommand[AUX2] > 1750)) {
-      altitudeHoldState = OFF;
-      isAltitudeHoldInitialized = false;
-    }
-#else
-    if (receiverCommand[AUX1] > 1750) {
-      altitudeHoldState = OFF;
-      isAltitudeHoldInitialized = false;
-    }
-#endif
-  }
-}
 #endif
 
 
-#if defined (UseGPSNavigator)
-void processGpsNavigationStateFromReceiverCommand() {
-  // Init home command
-  if (motorArmed == OFF && 
-    receiverCommand[THROTTLE] < MINCHECK && receiverCommand[ZAXIS] < MINCHECK &&
-    receiverCommand[YAXIS] > MAXCHECK && receiverCommand[XAXIS] > MAXCHECK &&
-    haveAGpsLock()) {
+#if defined (UseGPS)
+  void processGpsNavigationStateFromReceiverCommand() {
+    // Init home command
+    if (motorArmed == OFF && 
+        receiverCommand[receiverChannelMap[THROTTLE]] < MINCHECK && receiverCommand[receiverChannelMap[ZAXIS]] < MINCHECK &&
+        receiverCommand[receiverChannelMap[YAXIS]] > MAXCHECK && receiverCommand[receiverChannelMap[XAXIS]] > MAXCHECK &&
+        haveAGpsLock()) {
+  
+      homePosition.latitude = currentPosition.latitude;
+      homePosition.longitude = currentPosition.longitude;
+      homePosition.altitude = DEFAULT_HOME_ALTITUDE;
+    }
 
-    homePosition.latitude = currentPosition.latitude;
-    homePosition.longitude = currentPosition.longitude;
-    homePosition.altitude = DEFAULT_HOME_ALTITUDE;
-  }
+    if (receiverCommand[receiverChannelMap[AUX2]] < 1750) {  // Enter in execute mission state, if none, go back home, override the position hold
+      if (isInitNavigationNeeded) {
+        
+        gpsRollAxisCorrection = 0;
+        gpsPitchAxisCorrection = 0;
+        gpsYawAxisCorrection = 0;
+        isInitNavigationNeeded = false;
+      }
 
+  
+      positionHoldState = OFF;         // disable the position hold while navigating
+      isStorePositionNeeded = true;
+  
+      navigationState = ON;
+    }
+    else if (receiverCommand[receiverChannelMap[AUX1]] < 1250) {  // Enter in position hold state
+      if (isStorePositionNeeded) {
+        
+        gpsRollAxisCorrection = 0;
+        gpsPitchAxisCorrection = 0;
+        gpsYawAxisCorrection = 0;
 
-  if (receiverCommand[AUX2] < 1750) {  // Enter in execute mission state, if none, go back home, override the position hold
-    if (!isGpsNavigationInitialized) {
+        positionHoldPointToReach.latitude = currentPosition.latitude;
+        positionHoldPointToReach.longitude = currentPosition.longitude;
+        positionHoldPointToReach.altitude = getBaroAltitude();
+        isStorePositionNeeded = false;
+		
+		// convert to radians here so we don't do it on each gpsNav loop
+        //holdLatRad = radians(positionHoldPointToReach.latitude);
+        //holdLonRad = radians(positionHoldPointToReach.longitude);
+      }
+  
+      isInitNavigationNeeded = true;  // disable navigation
+      navigationState = OFF;
+  
+      positionHoldState = ON;
+    }
+    else {
+      // Navigation and position hold are disabled
+      positionHoldState = OFF;
+      isStorePositionNeeded = true;
+  
+      navigationState = OFF;
+      isInitNavigationNeeded = true;
+  
       gpsRollAxisCorrection = 0;
       gpsPitchAxisCorrection = 0;
       gpsYawAxisCorrection = 0;
-      isGpsNavigationInitialized = true;
     }
-
-    positionHoldState = OFF;         // disable the position hold while navigating
-    isPositionHoldInitialized = false;
-
-    navigationState = ON;
   }
-  else if (receiverCommand[AUX1] < 1250) {  // Enter in position hold state
-    if (!isPositionHoldInitialized) {
-      gpsRollAxisCorrection = 0;
-      gpsPitchAxisCorrection = 0;
-      gpsYawAxisCorrection = 0;
-
-      positionHoldPointToReach.latitude = currentPosition.latitude;
-      positionHoldPointToReach.longitude = currentPosition.longitude;
-      positionHoldPointToReach.altitude = getBaroAltitude();      
-
-      // convert to radians here so we don't do it on each gpsNav loop
-      holdLatRad = radians(positionHoldPointToReach.latitude);
-      holdLonRad = radians(positionHoldPointToReach.longitude);
-      
-      isPositionHoldInitialized = true;
-    }
-
-    isGpsNavigationInitialized = false;  // disable navigation
-    navigationState = OFF;
-
-    positionHoldState = ON;
-  }
-  else {
-    // Navigation and position hold are disabled
-    positionHoldState = OFF;
-    isPositionHoldInitialized = false;
-
-    navigationState = OFF;
-    isGpsNavigationInitialized = false;
-
-    gpsRollAxisCorrection = 0;
-    gpsPitchAxisCorrection = 0;
-    gpsYawAxisCorrection = 0;    
-  }
-}
 #endif
 
 
@@ -183,61 +205,58 @@ void processGpsNavigationStateFromReceiverCommand() {
 
 void processZeroThrottleFunctionFromReceiverCommand() {
   // Disarm motors (left stick lower left corner)
-  if (receiverCommand[ZAXIS] < MINCHECK && motorArmed == ON) {
+  
+  if (receiverCommand[receiverChannelMap[ZAXIS]] < MINCHECK && motorArmed == ON) {
     commandAllMotors(MINCOMMAND);
     motorArmed = OFF;
     inFlight = false;
 
-#ifdef OSD
-    notifyOSD(OSD_CENTER|OSD_WARN, "MOTORS UNARMED");
-#endif
+    #ifdef OSD
+      notifyOSD(OSD_CENTER|OSD_WARN, "MOTORS UNARMED");
+    #endif
 
-#if defined BattMonitorAutoDescent
-    batteryMonitorAlarmCounter = 0;
-    batteryMonitorStartThrottle = 0;
-    batteyMonitorThrottleCorrection = 0.0;
-#endif
+    #if defined BattMonitorAutoDescent
+      batteryMonitorAlarmCounter = 0;
+      batteryMonitorStartThrottle = 0;
+      batteyMonitorThrottleCorrection = 0.0;
+    #endif
   }    
 
   // Zero Gyro and Accel sensors (left stick lower left, right stick lower right corner)
-  if ((receiverCommand[ZAXIS] < MINCHECK) && (receiverCommand[XAXIS] > MAXCHECK) && (receiverCommand[YAXIS] < MINCHECK)) {
+  if ((receiverCommand[receiverChannelMap[ZAXIS]] < MINCHECK) && (receiverCommand[receiverChannelMap[XAXIS]] > MAXCHECK) && (receiverCommand[receiverChannelMap[YAXIS]] < MINCHECK)) {
     calibrateGyro();
     computeAccelBias();
     storeSensorsZeroToEEPROM();
-    calibrateKinematics();
     zeroIntegralError();
     pulseMotors(3);
   }   
 
   // Arm motors (left stick lower right corner)
-  if (receiverCommand[ZAXIS] > MAXCHECK && motorArmed == OFF && safetyCheck == ON) {
+  if (receiverCommand[receiverChannelMap[ZAXIS]] > MAXCHECK && motorArmed == OFF && safetyCheck == ON) {
 
-#ifdef OSD_SYSTEM_MENU
-    if (menuOwnsSticks) {
-      return;
-    }
-#endif
+    #ifdef OSD_SYSTEM_MENU
+      if (menuOwnsSticks) {
+        return;
+      }
+    #endif
 
     for (byte motor = 0; motor < LASTMOTOR; motor++) {
       motorCommand[motor] = MINTHROTTLE;
     }
     motorArmed = ON;
 
-#ifdef OSD
-    notifyOSD(OSD_CENTER|OSD_WARN, "!MOTORS ARMED!");
-#endif  
+    #ifdef OSD
+      notifyOSD(OSD_CENTER|OSD_WARN, "!MOTORS ARMED!");
+    #endif  
 
     zeroIntegralError();
 
   }
   // Prevents accidental arming of motor output if no transmitter command received
-  if (receiverCommand[ZAXIS] > MINCHECK) {
+  if (receiverCommand[receiverChannelMap[ZAXIS]] > MINCHECK) {
     safetyCheck = ON; 
   }
 }
-
-
-
 
 /**
  * readPilotCommands
@@ -248,42 +267,59 @@ void processZeroThrottleFunctionFromReceiverCommand() {
 void readPilotCommands() {
 
   readReceiver(); 
-
-  if (receiverCommand[THROTTLE] < MINCHECK) {
+  
+  if (receiverCommand[receiverChannelMap[THROTTLE]] < MINCHECK) {
     processZeroThrottleFunctionFromReceiverCommand();
   }
 
   if (!inFlight) {
-    if (motorArmed == ON && receiverCommand[THROTTLE] > minArmedThrottle) {
+    if (motorArmed == ON && receiverCommand[receiverChannelMap[THROTTLE]] > minArmedThrottle) {
       inFlight = true;
     }
   }
 
   // Check Mode switch for Acro or Stable
-  if (receiverCommand[MODE] > 1500) {
-    flightMode = ATTITUDE_FLIGHT_MODE;
-  }
-  else {
-    flightMode = RATE_FLIGHT_MODE;
-  }
-
+  #if defined USE_HORIZON_MODE
+    if (receiverCommand[receiverChannelMap[MODE]] > 1666) {
+      flightMode = ATTITUDE_FLIGHT_MODE;
+    }
+    else if (receiverCommand[receiverChannelMap[MODE]] < 1666 && receiverCommand[receiverChannelMap[MODE]] > 1333) {
+      flightMode = HORIZON_FLIGHT_MODE;
+    }
+    else {
+      flightMode = RATE_FLIGHT_MODE;
+    }
+  #else
+    if (receiverCommand[receiverChannelMap[MODE]] > 1666) {
+      flightMode = ATTITUDE_FLIGHT_MODE;
+    }
+    else {
+      flightMode = RATE_FLIGHT_MODE;
+    }
+  #endif
+  
   if (previousFlightMode != flightMode) {
     zeroIntegralError();
-    previousFlightMode = flightMode;
   }
+  previousFlightMode = flightMode;
+    
+  #if defined AltitudeHoldBaro
+    processAltitudeHoldStateFromReceiverCommand();
+  #endif
+  
+  #if defined (AutoLanding)
+    processAutoLandingStateFromReceiverCommand();
+  #endif
 
-
-#if defined AltitudeHoldBaro || defined AltitudeHoldRangeFinder
-  processAltitudeHoldStateFromReceiverCommand();
-#endif
-
-#if defined (AutoLanding)
-  processAutoLandingStateFromReceiverCommand();
-#endif
-
-#if defined (UseGPSNavigator)
-  processGpsNavigationStateFromReceiverCommand();
-#endif
+  #if defined (UseGPS)
+    if (isGpsEnabled) {
+      processGpsNavigationStateFromReceiverCommand();
+    }
+    else {
+      positionHoldState = OFF;
+      navigationState = OFF;
+    }
+  #endif
 }
 
 #endif // _AQ_FLIGHT_COMMAND_READER_

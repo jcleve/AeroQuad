@@ -26,12 +26,14 @@ int gyroRaw[3] = {0,0,0};
 #include <Platform_MPU6000.h>
 #include <Gyroscope.h>
 
-#define GYRO_CALIBRATION_TRESHOLD 25
+#define GYRO_CALIBRATION_TRESHOLD 90
 
 void initializeGyro() {
-  float range = 2*1000.0;
+  float range = 2 * 2000.0;
   gyroScaleFactor = radians(range/65536.0);
 
+  gyroOneMeterSecADCFactor = 1 / gyroScaleFactor;
+	
   initializeMPU6000Sensors();
 }
 
@@ -45,12 +47,11 @@ void gyroUpdateHeading()
 }
 
 void measureGyro() {
-  readMPU6000Gyro();
+  readMPU6000Sensors();
 
-  int gyroADC[3];
-  gyroADC[XAXIS] = (gyroRaw[XAXIS]=MPU6000.data.gyro.x)  - gyroZero[XAXIS];
-  gyroADC[YAXIS] = gyroZero[YAXIS] - (gyroRaw[YAXIS]=MPU6000.data.gyro.y);
-  gyroADC[ZAXIS] = gyroZero[ZAXIS] - (gyroRaw[ZAXIS]=MPU6000.data.gyro.z);
+  gyroADC[XAXIS] = (gyroRaw[XAXIS] = MPU6000.data.gyro.x) - gyroZero[XAXIS];
+  gyroADC[YAXIS] = gyroZero[YAXIS] - (gyroRaw[YAXIS] = MPU6000.data.gyro.y);
+  gyroADC[ZAXIS] = gyroZero[ZAXIS] - (gyroRaw[ZAXIS] = MPU6000.data.gyro.z);
 
   for (byte axis = 0; axis <= ZAXIS; axis++) {
     gyroRate[axis] = gyroADC[axis] * gyroScaleFactor;
@@ -60,7 +61,7 @@ void measureGyro() {
 }
 
 void measureGyroSum() {
-  readMPU6000Gyro();
+
   gyroSample[XAXIS] += (gyroRaw[XAXIS]=MPU6000.data.gyro.x);
   gyroSample[YAXIS] += (gyroRaw[YAXIS]=MPU6000.data.gyro.y);
   gyroSample[ZAXIS] += (gyroRaw[ZAXIS]=MPU6000.data.gyro.z);
@@ -69,48 +70,32 @@ void measureGyroSum() {
 }
 
 void evaluateGyroRate() {
-  int gyroADC[3];
+
   gyroADC[XAXIS] = (gyroSample[XAXIS] / gyroSampleCount) - gyroZero[XAXIS];
   gyroADC[YAXIS] = gyroZero[YAXIS] - (gyroSample[YAXIS] / gyroSampleCount);
   gyroADC[ZAXIS] = gyroZero[ZAXIS] - (gyroSample[ZAXIS] / gyroSampleCount);
 
-  gyroSample[XAXIS] = 0;
-  gyroSample[YAXIS] = 0;
-  gyroSample[ZAXIS] = 0;
-  gyroSampleCount = 0;
-
-  for (byte axis = 0; axis <= ZAXIS; axis++) {
-    gyroRate[axis] = gyroADC[axis] * gyroScaleFactor;
-  }
-
-  gyroUpdateHeading();
+  processGyroCommon();
 }
+
+
 
 
 boolean calibrateGyro() {
   
-  int findZero[FINDZERO];
-  int diff = 0; 
+  long findZero[3] = {0,0,0};
+  for (int i=0; i < FINDZERO; i++) {
+    readMPU6000Sensors();
+    findZero[XAXIS] += MPU6000.data.gyro.x;
+    findZero[YAXIS] += MPU6000.data.gyro.y;
+    findZero[ZAXIS] += MPU6000.data.gyro.z;
+    delay(10);
+  }
+
   for (byte axis = 0; axis < 3; axis++) {
-    for (int i=0; i<FINDZERO; i++) {
-      readMPU6000Sensors();
-      if(axis == XAXIS) {
-    	findZero[i] = MPU6000.data.gyro.x;
-      } 
-	  else if(axis == YAXIS) {
-    	findZero[i] = MPU6000.data.gyro.y;
-      } 
-	  else {
-    	findZero[i] = MPU6000.data.gyro.z;
-      }
-      delay(10);
-    }
-    int tmp = findMedianIntWithDiff(findZero, FINDZERO, &diff);
-	if (diff <= GYRO_CALIBRATION_TRESHOLD) { 
-	  gyroZero[axis] = tmp;
-	} 
-	else {
-		return false; //Calibration failed.
+    gyroZero[axis] = findZero[axis] / FINDZERO;
+	if (abs(gyroZero[axis]) >= GYRO_CALIBRATION_TRESHOLD) {
+	  return false;
 	}
   }
   return true;

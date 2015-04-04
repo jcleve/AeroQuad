@@ -25,12 +25,12 @@
 #include <Accelerometer.h>
 
 void initializeAccel() {
-  initializeMPU6000Sensors();
+
 }
 
 
 void measureAccel() {
-  readMPU6000Accel();
+  readMPU6000Sensors();
 
   meterPerSecSec[XAXIS] = MPU6000.data.accel.x * accelScaleFactor[XAXIS] + runTimeAccelBias[XAXIS];
   meterPerSecSec[YAXIS] = MPU6000.data.accel.y * accelScaleFactor[YAXIS] + runTimeAccelBias[YAXIS];
@@ -38,7 +38,7 @@ void measureAccel() {
 }
 
 void measureAccelSum() {
-  readMPU6000Accel();
+  
   accelSample[XAXIS] += MPU6000.data.accel.x;
   accelSample[YAXIS] += MPU6000.data.accel.y;
   accelSample[ZAXIS] += MPU6000.data.accel.z;
@@ -48,13 +48,18 @@ void measureAccelSum() {
 
 void evaluateMetersPerSec() {
   for (byte axis = XAXIS; axis <= ZAXIS; axis++) {
-    meterPerSecSec[axis] = (accelSample[axis] / accelSampleCount) * accelScaleFactor[axis] + runTimeAccelBias[axis];
+    meterPerSecSec[axis] = (((previousPreviousAccelSample[axis] + previousAccelSample[axis] + accelSample[axis])/3) / accelSampleCount * accelScaleFactor[axis]) + runTimeAccelBias[axis];
+	previousPreviousAccelSample[axis] = previousAccelSample[axis];
+	previousAccelSample[axis] = accelSample[axis];
   	accelSample[axis] = 0;
   }
   accelSampleCount = 0;
 }
 
 void computeAccelBias() {
+
+  evaluateMetersPerSec();	// reset samples
+  delay(2);
   for (int samples = 0; samples < SAMPLECOUNT; samples++) {
 	readMPU6000Sensors();
     measureAccelSum();

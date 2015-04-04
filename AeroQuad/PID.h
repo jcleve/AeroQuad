@@ -27,9 +27,6 @@ enum {
   ZAXIS_PID_IDX,
   ATTITUDE_XAXIS_PID_IDX,
   ATTITUDE_YAXIS_PID_IDX,
-  HEADING_HOLD_PID_IDX,
-  ATTITUDE_GYRO_XAXIS_PID_IDX,
-  ATTITUDE_GYRO_YAXIS_PID_IDX,
   #if defined AltitudeHoldBaro || defined AltitudeHoldRangeFinder
     BARO_ALTITUDE_HOLD_PID_IDX,
     ZDAMPENING_PID_IDX,
@@ -37,7 +34,7 @@ enum {
   #if defined AltitudeHoldRangeFinder
     SONAR_ALTITUDE_HOLD_PID_IDX,
   #endif
-  #if defined UseGPSNavigator
+  #if defined UseGPS
     GPSPITCH_PID_IDX,
     GPSROLL_PID_IDX,
     GPSYAW_PID_IDX,
@@ -53,7 +50,6 @@ struct PIDdata {
   // AKA experiments with PID
   float previousPIDTime;
   float integratedError;
-  float windupGuard; // Thinking about having individual wind up guards for each PID
 } PID[LAST_PID_IDX];
 
 // This struct above declares the variable PID[] to hold each of the PID values for various functions
@@ -63,11 +59,9 @@ struct PIDdata {
 // HEADING = 5 (used for heading hold)
 // ALTITUDE = 8 (used for altitude hold)
 // ZDAMPENING = 9 (used in altitude hold to dampen vertical accelerations)
-float windupGuard; // Read in from EEPROM
-//// Modified from http://www.arduino.cc/playground/Main/BarebonesPIDForEspresso
-float updatePID(float targetPosition, float currentPosition, struct PIDdata *PIDparameters) {
 
-  // AKA PID experiments
+float updatePID(float targetPosition, float currentPosition, struct PIDdata *PIDparameters, float errorTreshold = 0) {
+
   const float deltaPIDTime = (currentTime - PIDparameters->previousPIDTime) / 1000000.0;
 
   PIDparameters->previousPIDTime = currentTime;  // AKA PID experiments
@@ -75,16 +69,43 @@ float updatePID(float targetPosition, float currentPosition, struct PIDdata *PID
 
   if (inFlight) {
     PIDparameters->integratedError += error * deltaPIDTime;
+    if (errorTreshold != 0) {
+      PIDparameters->integratedError = constrain(PIDparameters->integratedError, -errorTreshold, errorTreshold);
+    }
   }
   else {
     PIDparameters->integratedError = 0.0;
   }
-  PIDparameters->integratedError = constrain(PIDparameters->integratedError, -PIDparameters->windupGuard, PIDparameters->windupGuard);
   float dTerm = PIDparameters->D * (currentPosition - PIDparameters->lastError) / (deltaPIDTime * 100); // dT fix from Honk
   PIDparameters->lastError = currentPosition;
 
   return (PIDparameters->P * error) + (PIDparameters->I * PIDparameters->integratedError) + dTerm;
 }
+
+
+//float updatePIDDerivativeBaseRate(float targetPosition, float currentPosition, struct PIDdata *PIDparameters) {
+//
+//  // AKA PID experiments
+//  const float deltaPIDTime = (currentTime - PIDparameters->previousPIDTime) / 1000000.0;
+//
+//  PIDparameters->previousPIDTime = currentTime;  // AKA PID experiments
+//  float error = targetPosition - currentPosition;
+//
+//  if (inFlight) {
+//    PIDparameters->integratedError += error * deltaPIDTime;
+//  }
+//  else {
+//    PIDparameters->integratedError = 0.0;
+//  }
+//  float cptr[3] = {0.0,0.0,0.0};
+//  cptr[0] = PIDparameters->P * error;
+//  cptr[1] = PIDparameters->I * PIDparameters->integratedError;
+//  cptr[2] = PIDparameters->D * (targetPosition - PIDparameters->lastError) / (deltaPIDTime * 100); // dT fix from Honk
+//  PIDparameters->lastError = targetPosition;
+//
+//  return cptr[0] + cptr[1] + cptr[2];
+//}
+
 
 void zeroIntegralError() __attribute__ ((noinline));
 void zeroIntegralError() {

@@ -21,192 +21,262 @@
 #ifndef _AQ_KINEMATICS_MARG_
 #define _AQ_KINEMATICS_MARG_
 
-//=====================================================================================================
-// AHRS.c
-// S.O.H. Madgwick
-// 25th August 2010
-//=====================================================================================================
-// Description:
-//
-// Quaternion implementation of the 'DCM filter' [Mayhony et al].  Incorporates the magnetic distortion
-// compensation algorithms from my filter [Madgwick] which eliminates the need for a reference
-// direction of flux (bx bz) to be predefined and limits the effect of magnetic distortions to yaw
-// axis only.
-//
-// User must define 'halfT' as the (sample period / 2), and the filter gains 'Kp' and 'Ki'.
-//
-// Global variables 'q0', 'q1', 'q2', 'q3' are the quaternion elements representing the estimated
-// orientation.  See my report for an overview of the use of quaternions in this application.
-//
-// User must call 'AHRSupdate()' every sample period and parse calibrated gyroscope ('gx', 'gy', 'gz'),
-// accelerometer ('ax', 'ay', 'ay') and magnetometer ('mx', 'my', 'mz') data.  Gyroscope units are
-// radians/second, accelerometer and magnetometer units are irrelevant as the vector is normalised.
-//
-//=====================================================================================================
-
-////////////////////////////////////////////////////////////////////////////////
-// MARG - Magntometer, Accelerometer, Rate Gyro
-////////////////////////////////////////////////////////////////////////////////
-
+#include "Accelerometer.h"
 #include "Kinematics.h"
+#include "MagnetometerDeclinationDB.h"
 
-float kpAcc = 0.0;                					// proportional gain governs rate of convergence to accelerometer
-float kiAcc = 0.0;                					// integral gain governs rate of convergence of gyroscope biases
-float kpMag = 0.0;                					// proportional gain governs rate of convergence to magnetometer
-float kiMag = 0.0;                					// integral gain governs rate of convergence of gyroscope biases
-float halfT = 0.0;                					// half the sample period
-float q0 = 0.0, q1 = 0.0, q2 = 0.0, q3 = 0.0;       // quaternion elements representing the estimated orientation
-float exInt = 0.0, eyInt = 0.0, ezInt = 0.0;  		// scaled integral error
+//----------------------------------------------------------------------------------------------------
+// Variable declaration
+double trueNorthHeading = 0.0;
+boolean magDataUpdate = false;
 
-float trueNorthHeading = 0.0;
+double exAcc    = 0.0f, eyAcc    = 0.0f, ezAcc    = 0.0f; // accel error
+double exAccInt = 0.0f, eyAccInt = 0.0f, ezAccInt = 0.0f; // accel integral error
+double exMag    = 0.0f, eyMag    = 0.0f, ezMag    = 0.0f; // mag error
+double exMagInt = 0.0f, eyMagInt = 0.0f, ezMagInt = 0.0f; // mag integral error
+double kpAcc, kiAcc;
 
-////////////////////////////////////////////////////////////////////////////////
-// margUpdate
-////////////////////////////////////////////////////////////////////////////////
+// auxiliary variables to reduce number of repeated operations
+double q0q0, q0q1, q0q2, q0q3;
+double q1q1, q1q2, q1q3;
+double q2q2, q2q3;
+double q3q3;
 
-void margUpdate(float gx, float gy, float gz, float ax, float ay, float az, float mx, float my, float mz, float G_Dt) {
-  float norm;
-  float hx, hy, hz, bx, bz;
-  float vx, vy, vz, wx, wy, wz;
-  float q0i, q1i, q2i, q3i;
-  float exAcc, eyAcc, ezAcc;
-  float exMag, eyMag, ezMag;
-    
-  halfT = G_Dt/2;
-  
-  // auxiliary variables to reduce number of repeated operations
-  float q0q0 = q0*q0;
-  float q0q1 = q0*q1;
-  float q0q2 = q0*q2;
-  float q0q3 = q0*q3;
-  float q1q1 = q1*q1;
-  float q1q2 = q1*q2;
-  float q1q3 = q1*q3;
-  float q2q2 = q2*q2;   
-  float q2q3 = q2*q3;
-  float q3q3 = q3*q3;          
-    	
-  // normalise the measurements
-  norm = sqrt(ax*ax + ay*ay + az*az);       
-  ax = ax / norm;
-  ay = ay / norm;
-  az = az / norm;
-  norm = sqrt(mx*mx + my*my + mz*mz);          
-  mx = mx / norm;
-  my = my / norm;
-  mz = mz / norm;         
-    	
-  // compute reference direction of flux
-  hx = mx * 2*(0.5 - q2q2 - q3q3) + my * 2*(q1q2 - q0q3)       + mz * 2*(q1q3 + q0q2);
-  hy = mx * 2*(q1q2 + q0q3)       + my * 2*(0.5 - q1q1 - q3q3) + mz * 2*(q2q3 - q0q1);
-  hz = mx * 2*(q1q3 - q0q2)       + my * 2*(q2q3 + q0q1)       + mz * 2*(0.5 - q1q1 - q2q2);
-    
-  bx = sqrt((hx*hx) + (hy*hy));
-  bz = hz;        
-    	
-  // estimated direction of gravity and flux (v and w)
-  vx = 2*(q1q3 - q0q2);
-  vy = 2*(q0q1 + q2q3);
-  vz = q0q0 - q1q1 - q2q2 + q3q3;
-    
-  wx = bx * 2*(0.5 - q2q2 - q3q3) + bz * 2*(q1q3 - q0q2);
-  wy = bx * 2*(q1q2 - q0q3)       + bz * 2*(q0q1 + q2q3);
-  wz = bx * 2*(q0q2 + q1q3)       + bz * 2*(0.5 - q1q1 - q2q2);
-    	
-  // error is sum of cross product between reference direction of fields and direction measured by sensors
-  exAcc = (vy*az - vz*ay);
-  eyAcc = (vz*ax - vx*az);
-  ezAcc = (vx*ay - vy*ax);
-    
-  exMag = (my*wz - mz*wy);
-  eyMag = (mz*wx - mx*wz);
-  ezMag = (mx*wy - my*wx);
-    
-  // integral error scaled integral gain
-  exInt = exInt + exAcc*kiAcc + exMag*kiMag;
-  eyInt = eyInt + eyAcc*kiAcc + eyMag*kiMag;
-  ezInt = ezInt + ezAcc*kiAcc + ezMag*kiMag;
-    	
-  // adjusted gyroscope measurements
-  correctedRateVector[XAXIS] = gx = gx + exAcc*kpAcc + exMag*kpMag + exInt;
-  correctedRateVector[YAXIS] = gy = gy + eyAcc*kpAcc + eyMag*kpMag + eyInt;
-  correctedRateVector[ZAXIS] = gz = gz + ezAcc*kpAcc + ezMag*kpMag + ezInt;
-    	
-  // integrate quaternion rate and normalise
-  q0i = (-q1*gx - q2*gy - q3*gz) * halfT;
-  q1i = ( q0*gx + q2*gz - q3*gy) * halfT;
-  q2i = ( q0*gy - q1*gz + q3*gx) * halfT;
-  q3i = ( q0*gz + q1*gy - q2*gx) * halfT;
-  q0 += q0i;
-  q1 += q1i;
-  q2 += q2i;
-  q3 += q3i;
+uint8_t isAHRSInitialized = false;
+double compassDeclination = 0.0;
 
-  // normalise quaternion
-  norm = sqrt(q0*q0 + q1*q1 + q2*q2 + q3*q3);
-  q0 = q0 / norm;
-  q1 = q1 / norm;
-  q2 = q2 / norm;
-  q3 = q3 / norm;
-    
-  // save the adjusted gyroscope measurements
-  correctedRateVector[XAXIS] = gx;
-  correctedRateVector[YAXIS] = gy;
-  correctedRateVector[ZAXIS] = gz;
-}
-  
-void eulerAngles(void)
+double previousGx = 0.0;
+double previousGy = 0.0;
+double previousGz = 0.0;
+
+#define SQR(x)  ((x) * (x))
+
+//----------------------------------------------------------------------------------------------------
+
+
+
+
+//----------------------------------------------------------------------------------------------------
+
+//====================================================================================================
+// Initialization
+//====================================================================================================
+
+void initializeKinematics(double ax, double ay, double az, double mx, double my, double mz)
 {
-  kinematicsAngle[XAXIS]  = atan2(2 * (q0*q1 + q2*q3), 1 - 2 *(q1*q1 + q2*q2));
-  kinematicsAngle[YAXIS] = asin(2 * (q0*q2 - q1*q3));
-  trueNorthHeading = kinematicsAngle[ZAXIS]   = atan2(2 * (q0*q3 + q1*q2), 1 - 2 *(q2*q2 + q3*q3));
+	initializeBaseKinematicParam();
+
+    double initialRoll  = atan2(-ay, -az);
+    double initialPitch = atan2( ax, -az);
+
+    double cosRoll  = cos(initialRoll);
+    double sinRoll  = sin(initialRoll);
+    double cosPitch = cos(initialPitch);
+    double sinPitch = sin(initialPitch);
+
+    double magX = mx * cosPitch + my * sinRoll * sinPitch + mz * cosRoll * sinPitch;
+    double magY = my * cosRoll - mz * sinRoll;
+
+    double initialHdg = atan2(-magY, magX);
+
+    cosRoll = cos(initialRoll * 0.5f);
+    sinRoll = sin(initialRoll * 0.5f);
+    cosPitch = cos(initialPitch * 0.5f);
+    sinPitch = sin(initialPitch * 0.5f);
+
+    double cosHeading = cos(initialHdg * 0.5f);
+    double sinHeading = sin(initialHdg * 0.5f);
+
+    q0 = cosRoll * cosPitch * cosHeading + sinRoll * sinPitch * sinHeading;
+    q1 = sinRoll * cosPitch * cosHeading - cosRoll * sinPitch * sinHeading;
+    q2 = cosRoll * sinPitch * cosHeading + sinRoll * cosPitch * sinHeading;
+    q3 = cosRoll * cosPitch * sinHeading - sinRoll * sinPitch * cosHeading;
+
+    // auxillary variables to reduce number of repeated operations, for 1st pass
+    q0q0 = q0 * q0;
+    q0q1 = q0 * q1;
+    q0q2 = q0 * q2;
+    q0q3 = q0 * q3;
+    q1q1 = q1 * q1;
+    q1q2 = q1 * q2;
+    q1q3 = q1 * q3;
+    q2q2 = q2 * q2;
+    q2q3 = q2 * q3;
+    q3q3 = q3 * q3;
 }
 
-  
-////////////////////////////////////////////////////////////////////////////////
-// Initialize MARG
-////////////////////////////////////////////////////////////////////////////////
-void initializeKinematics(float hdgX, float hdgY) 
+//====================================================================================================
+// Function
+//====================================================================================================
+
+void calculateKinematicsMAGR(double gx, double gy, double gz,
+                    double ax, double ay, double az,
+                    double mx, double my, double mz)
 {
-  initializeBaseKinematicsParam(hdgX,hdgY);
-  float hdg = atan2(hdgY, hdgX);
-    
-  q0 = cos(hdg/2);
-  q1 = 0;
-  q2 = 0;
-  q3 = sin(hdg/2);
-  exInt = 0.0;
-  eyInt = 0.0;
-  ezInt = 0.0;
+    unsigned long currentKinematicTime = micros();
+    double dt = (currentKinematicTime - kinematicPreviousTime) / 1000000.0;
+    kinematicPreviousTime = currentKinematicTime;
 
-  kpAcc = 0.2;
-  kiAcc = 0.0005;
-    
-  kpMag = 0.2;//2.0;
-  kiMag = 0.0005;//0.005;
-}
-  
-////////////////////////////////////////////////////////////////////////////////
-// Calculate MARG
-////////////////////////////////////////////////////////////////////////////////
+	halfT = dt * 0.5f;
+	double norm = sqrt(SQR(ax) + SQR(ay) + SQR(az));
+//	calculateAccConfidence(norm);
+	kpAcc = DEFAULT_Kp;// * accConfidence;
+	kiAcc = DEFAULT_Ki;// * accConfidence;
 
-void calculateKinematics(float rollRate,          float pitchRate,    float yawRate,  
-                 float longitudinalAccel, float lateralAccel, float verticalAccel, 
-                 float measuredMagX,      float measuredMagY, float measuredMagZ,
-				 float G_Dt) {
-    
-  margUpdate(rollRate,          pitchRate,    yawRate, 
-             longitudinalAccel, lateralAccel, verticalAccel,  
-             measuredMagX,      measuredMagY, measuredMagZ,
-		     G_Dt);
-  eulerAngles();
-}
-  
-float getGyroUnbias(byte axis) {
-  return correctedRateVector[axis];
-}
-  
-void calibrateKinematics() {}
+	double normR = 1.0f / norm;
+	ax *= normR;
+	ay *= normR;
+	az *= normR;
 
+	// estimated direction of gravity (v)
+	double vx = 2.0f * (q1q3 - q0q2);
+	double vy = 2.0f * (q0q1 + q2q3);
+	double vz = q0q0 - q1q1 - q2q2 + q3q3;
+
+	// error is sum of cross product between reference direction
+	// of fields and direction measured by sensors
+	exAcc = vy * az - vz * ay;
+	eyAcc = vz * ax - vx * az;
+	ezAcc = vx * ay - vy * ax;
+
+	gx += exAcc * kpAcc;
+	gy += eyAcc * kpAcc;
+	gz += ezAcc * kpAcc;
+
+	if (kiAcc > 0.0f)
+	{
+		exAccInt += exAcc * kiAcc;
+		if (isSwitched(previousEx,exAcc)) {
+			exAccInt = 0.0;
+		}
+		previousEx = exAcc;
+
+		eyAccInt += eyAcc * kiAcc;
+		if (isSwitched(previousEy,eyAcc)) {
+			eyAccInt = 0.0;
+		}
+		previousEy = eyAcc;
+		
+		ezAccInt += ezAcc * kiAcc;
+		if (isSwitched(previousEz,ezAcc)) {
+			ezAccInt = 0.0;
+		}
+		previousEz = ezAcc;
+		
+		gx += exAccInt;
+		gy += eyAccInt;
+		gz += ezAccInt;
+	}
+
+	//-------------------------------------------
+	norm = sqrt(SQR(mx) + SQR(my) + SQR(mz));
+	if (( magDataUpdate == true) && (norm != 0.0f))
+	{
+		normR = 1.0f / norm;
+		mx *= normR;
+		my *= normR;
+		mz *= normR;
+
+		// compute reference direction of flux
+		double hx = 2.0f * (mx * (0.5f - q2q2 - q3q3) + my * (q1q2 - q0q3) + mz * (q1q3 + q0q2));
+		double hy = 2.0f * (mx * (q1q2 + q0q3) + my * (0.5f - q1q1 - q3q3) + mz * (q2q3 - q0q1));
+		double hz = 2.0f * (mx * (q1q3 - q0q2) + my * (q2q3 + q0q1) + mz * (0.5f - q1q1 - q2q2));
+		double bx = sqrt((hx * hx) + (hy * hy));
+		double bz = hz;
+
+		// estimated direction of flux (w)
+		double wx = 2.0f * (bx * (0.5f - q2q2 - q3q3) + bz * (q1q3 - q0q2));
+		double wy = 2.0f * (bx * (q1q2 - q0q3) + bz * (q0q1 + q2q3));
+		double wz = 2.0f * (bx * (q0q2 + q1q3) + bz * (0.5f - q1q1 - q2q2));
+
+		exMag = my * wz - mz * wy;
+		eyMag = mz * wx - mx * wz;
+		ezMag = mx * wy - my * wx;
+
+		// use un-extrapolated old values between magnetometer updates
+		// dubious as dT does not apply to the magnetometer calculation so
+		// time scaling is embedded in KpMag and KiMag
+		static const double magP = 0.2; //0.2;
+		gx += exMag * magP;
+		gy += eyMag * magP;
+		gz += ezMag * magP;
+
+		static const double magI = 0.0005; //0.0005;
+		exMagInt += exMag * magI;
+		if (isSwitched(previousGx,gx)) {
+			exMagInt = 0.0;
+		}
+		previousGx = gx;
+		
+		eyMagInt += eyMag * magI;
+		if (isSwitched(previousGy,gy)) {
+			eyMagInt = 0.0;
+		}
+		previousGy = gy;
+
+		ezMagInt += ezMag * magI;
+        if (isSwitched(previousGz,gz)) {
+			ezMagInt = 0.0;
+		}
+		previousGz = gz;
+
+		gx += exMagInt;
+		gy += eyMagInt;
+		gz += ezMagInt;
+	}
+
+	// integrate quaternion rate
+	q0 += ((-q1 * gx - q2 * gy - q3 * gz) * halfT);
+	q1 += (( q0 * gx + q2 * gz - q3 * gy) * halfT);
+	q2 += (( q0 * gy - q1 * gz + q3 * gx) * halfT);
+	q3 += (( q0 * gz + q1 * gy - q2 * gx) * halfT);
+
+	// normalise quaternion
+	normR = 1.0f / sqrt(q0 * q0 + q1 * q1 + q2 * q2 + q3 * q3);
+	q0 *= normR;
+	q1 *= normR;
+	q2 *= normR;
+	q3 *= normR;
+
+	// auxiliary variables to reduce number of repeated operations
+	q0q0 = q0 * q0;
+	q0q1 = q0 * q1;
+	q0q2 = q0 * q2;
+	q0q3 = q0 * q3;
+	q1q1 = q1 * q1;
+	q1q2 = q1 * q2;
+	q1q3 = q1 * q3;
+	q2q2 = q2 * q2;
+	q2q3 = q2 * q3;
+	q3q3 = q3 * q3;
+
+	kinematicsAngle[XAXIS] = atan2( 2.0f * (q0q1 + q2q3), q0q0 - q1q1 - q2q2 + q3q3 );
+	kinematicsAngle[YAXIS] = -asin( 2.0f * (q1q3 - q0q2) );
+	trueNorthHeading = atan2( 2.0f * (q1q2 + q0q3), q0q0 + q1q1 - q2q2 - q3q3 );
+
+	kinematicCorrectedAccel[0] = 2 * q1 * q3 - 2 * q0 * q2;
+    kinematicCorrectedAccel[1] = 2 * q2 * q3 + 2 * q0 * q1;
+    kinematicCorrectedAccel[2] = q0*q0 - q1*q1 - q2*q2 + q3*q3;
+
+	#if defined UseGPS
+		if( compassDeclination != 0.0 ) {
+			trueNorthHeading = trueNorthHeading + compassDeclination;
+			if (trueNorthHeading > M_PI)  {  // Angle normalization (-180 deg, 180 deg)
+				trueNorthHeading -= (2.0 * M_PI);
+			} 
+			else if (trueNorthHeading < -M_PI){
+				trueNorthHeading += (2.0 * M_PI);
+			}
+		}
+	#endif
+}
+
+
+#if defined UseGPS
+  void setDeclinationLocation(long lat, long lon) {
+	// get declination ( in radians )
+	compassDeclination = getMagnetometerDeclination(lat, lon);    
+  }
+#endif
 
 #endif

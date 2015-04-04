@@ -393,7 +393,7 @@ int findMedianInt(int *data, int arraySize)
   return data[arraySize/2]; // return the median value
 }
 
-int findMedianIntWithDiff(int *data, int arraySize, int * diff) 
+long findMedianIntWithDiff(long *data, int arraySize, int * diff) 
 {
   int temp;
   boolean done = 0;
@@ -427,19 +427,5 @@ boolean isSwitched(float previousError, float currentError) {
     return true;
   }
   return false;
-}
-
-float invSqrt (float x){ 
-  union{  
-    int32_t i;  
-    float   f; 
-  } conv; 
-  conv.f = x; 
-  conv.i = 0x5f3759df - (conv.i >> 1); 
-  return 0.5f * conv.f * (3.0f - x * conv.f * conv.f);
-} 
-
-int32_t isq(int32_t  x) {
-  return x * x;
 }
 

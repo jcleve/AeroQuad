@@ -122,39 +122,50 @@ void nvrWritePID(unsigned char IDPid, unsigned int IDEeprom) {
 
 // contains all default values when re-writing EEPROM
 void initializeEEPROM() {
-  PID[RATE_XAXIS_PID_IDX].P = 100.0;
-  PID[RATE_XAXIS_PID_IDX].I = 150.0;
-  PID[RATE_XAXIS_PID_IDX].D = -350.0;
-  PID[RATE_YAXIS_PID_IDX].P = 100.0;
-  PID[RATE_YAXIS_PID_IDX].I = 150.0;
-  PID[RATE_YAXIS_PID_IDX].D = -350.0;
-  PID[ATTITUDE_XAXIS_PID_IDX].P = 3.5;
+  PID[RATE_XAXIS_PID_IDX].P = 0.1;
+  PID[RATE_XAXIS_PID_IDX].I = 0.01;
+  PID[RATE_XAXIS_PID_IDX].D = -0.35;
+  PID[RATE_YAXIS_PID_IDX].P = 0.1;
+  PID[RATE_YAXIS_PID_IDX].I = 0.01;
+  PID[RATE_YAXIS_PID_IDX].D = -0.35;
+  PID[ATTITUDE_XAXIS_PID_IDX].P = 4.0;
   PID[ATTITUDE_XAXIS_PID_IDX].I = 0.0;
   PID[ATTITUDE_XAXIS_PID_IDX].D = 0.0;
-  PID[ATTITUDE_YAXIS_PID_IDX].P = 3.5;
+  PID[ATTITUDE_YAXIS_PID_IDX].P = 4.0;
   PID[ATTITUDE_YAXIS_PID_IDX].I = 0.0;
   PID[ATTITUDE_YAXIS_PID_IDX].D = 0.0;
-  PID[ZAXIS_PID_IDX].P = 200.0;
-  PID[ZAXIS_PID_IDX].I = 5.0;
+  PID[ZAXIS_PID_IDX].P = 0.65;
+  PID[ZAXIS_PID_IDX].I = 0.05;
   PID[ZAXIS_PID_IDX].D = 0.0;
-  PID[HEADING_HOLD_PID_IDX].P = 3.0;
-  PID[HEADING_HOLD_PID_IDX].I = 0.1;
-  PID[HEADING_HOLD_PID_IDX].D = 0.0;
-  // AKA PID experiements
-  PID[ATTITUDE_GYRO_XAXIS_PID_IDX].P = 100.0;
-  PID[ATTITUDE_GYRO_XAXIS_PID_IDX].I = 0.0;
-  PID[ATTITUDE_GYRO_XAXIS_PID_IDX].D = -350.0;
-  PID[ATTITUDE_GYRO_YAXIS_PID_IDX].P = 100.0;
-  PID[ATTITUDE_GYRO_YAXIS_PID_IDX].I = 0.0;
-  PID[ATTITUDE_GYRO_YAXIS_PID_IDX].D = -350.0;
-  rotationSpeedFactor = 1.0;
+  rotationSpeedFactor = 2.5;
+  yawSpeedFactor = 2.5;
+  throttlePIDAdjustmentFactor = 50;
+  
+  receiverTypeUsed = RECEIVER_PWM;
+  for(byte channel = 0; channel < LAST_CHANNEL; channel++) {
+    receiverMinValue[channel] = 1000;
+    receiverMaxValue[channel] = 2000;
+  }
+  for (byte i = 0; i < LAST_CHANNEL;i++) {
+    receiverChannelMap[i] = i;    
+  }
+  yawDirection = 1;
+  flightConfigType = QUAD_X;
+  fastLoopSleepingDelay = 2500;
+  
+  accelScaleFactor[XAXIS] = 1.0;
+  runTimeAccelBias[XAXIS] = 0;
+  accelScaleFactor[YAXIS] = 1.0;
+  runTimeAccelBias[YAXIS] = 0;
+  accelScaleFactor[ZAXIS] = 1.0;
+  runTimeAccelBias[ZAXIS] = 0;
+  storeSensorsZeroToEEPROM();
 
   #if defined (AltitudeHoldBaro)
-    PID[BARO_ALTITUDE_HOLD_PID_IDX].P = 25.0;
-    PID[BARO_ALTITUDE_HOLD_PID_IDX].I = 0.6;
+    PID[BARO_ALTITUDE_HOLD_PID_IDX].P = 75.0;
+    PID[BARO_ALTITUDE_HOLD_PID_IDX].I = 0.0;
     PID[BARO_ALTITUDE_HOLD_PID_IDX].D = 0.0;
-    PID[BARO_ALTITUDE_HOLD_PID_IDX].windupGuard = 25.0; //this prevents the 0.1 I term to rise too far
-    PID[ZDAMPENING_PID_IDX].P = 0.0;
+    PID[ZDAMPENING_PID_IDX].P = 6.0;
     PID[ZDAMPENING_PID_IDX].I = 0.0;
     PID[ZDAMPENING_PID_IDX].D = 0.0;
   #endif
@@ -162,52 +173,32 @@ void initializeEEPROM() {
     PID[SONAR_ALTITUDE_HOLD_PID_IDX].P = 50.0;
     PID[SONAR_ALTITUDE_HOLD_PID_IDX].I = 0.6;
     PID[SONAR_ALTITUDE_HOLD_PID_IDX].D = 0.0;
-    PID[SONAR_ALTITUDE_HOLD_PID_IDX].windupGuard = 25.0; //this prevents the 0.1 I term to rise too far
   #endif
 
   
   #if defined AltitudeHoldBaro || defined AltitudeHoldRangeFinder
-    minThrottleAdjust = -50.0;
-    maxThrottleAdjust = 50.0; //we don't want it to be able to take over totally
     #if defined AltitudeHoldBaro
-      baroSmoothFactor = 0.1;
+      baroSmoothFactor = 0.07;
     #endif
-    altitudeHoldBump = 90;
-    altitudeHoldPanicStickMovement = 250;
+    altitudeHoldBump = 30;
+    altitudeHoldMaxVelocitySpeed = 200.0;
   #endif
   
   initializePlatformSpecificAccelCalibration();
 
-  windupGuard = 1000.0;
-
-  // AKA - added so that each PID has its own windupGuard, will need to be removed once each PID's range is established and put in the eeprom
-  for (byte i = XAXIS; i < LAST_PID_IDX; i++ ) {
-    #if defined AltitudeHoldBaro
-      if (i != BARO_ALTITUDE_HOLD_PID_IDX) {
-        PID[i].windupGuard = windupGuard;
-      }
-    #else
-      PID[i].windupGuard = windupGuard;
-    #endif
-  }
-    
-  receiverXmitFactor = 1.0;
   minArmedThrottle = 1150;
   // AKA - old setOneG not in SI - accel->setOneG(500);
   accelOneG = -9.80665; // AKA set one G to 9.8 m/s^2
-  for (byte channel = XAXIS; channel < LASTCHANNEL; channel++) {
-    receiverSlope[channel] = 1.0;
-    receiverOffset[channel] = 0.0;
-    receiverSmoothFactor[channel] = 1.0;
+  for (byte channel = XAXIS; channel < LAST_CHANNEL; channel++) {
+    receiverMinValue[channel] = 1000;
+    receiverMaxValue[channel] = 2000;
   }
-  receiverSmoothFactor[ZAXIS] = 0.5;
 
   flightMode = RATE_FLIGHT_MODE;
-  headingHoldConfig = ON;
-  aref = 5.0; // Use 3.0 if using a v1.7 shield or use 2.8 for an AeroQuad Shield < v1.7
   
   // Battery Monitor
   #ifdef BattMonitor
+    isBatteryMonitorEnabled = false;
     batteryMonitorAlarmVoltage = 3.33;
     batteryMonitorThrottleTarget = 1450;
     batteryMonitorGoingDownTime = 60000;
@@ -219,7 +210,8 @@ void initializeEEPROM() {
     minRangeFinderRange = 0.0;
   #endif
   
-  #if defined (UseGPSNavigator)
+  #if defined (UseGPS)
+    isGpsEnabled = false;
     missionNbPoint = 0;
     PID[GPSROLL_PID_IDX].P = 0.8;
     PID[GPSROLL_PID_IDX].I = 0.0;
@@ -265,24 +257,33 @@ void readEEPROM() {
   readPID(ZAXIS, YAW_PID_GAIN_ADR);
   readPID(ATTITUDE_XAXIS_PID_IDX, LEVELROLL_PID_GAIN_ADR);
   readPID(ATTITUDE_YAXIS_PID_IDX, LEVELPITCH_PID_GAIN_ADR);
-  readPID(HEADING_HOLD_PID_IDX, HEADING_PID_GAIN_ADR);
-  readPID(ATTITUDE_GYRO_XAXIS_PID_IDX, LEVEL_GYRO_ROLL_PID_GAIN_ADR);
-  readPID(ATTITUDE_GYRO_YAXIS_PID_IDX, LEVEL_GYRO_PITCH_PID_GAIN_ADR);
 
   rotationSpeedFactor = readFloat(ROTATION_SPEED_FACTOR_ARD);
+  yawSpeedFactor = readFloat(YAW_SPEED_FACTOR_ARD);
+  throttlePIDAdjustmentFactor = readLong(THROTTLE_PID_ADJUSTMENT_ADR);
+  
+  receiverTypeUsed = readFloat(RECEIVER_CONFIG_TYPE_ADR);
+  for(byte channel = 0; channel < LAST_CHANNEL; channel++) {
+    receiverMinValue[channel] = readLong(RECEIVER_DATA[channel].minValue);
+    receiverMaxValue[channel] = readLong(RECEIVER_DATA[channel].maxValue);
+  }
+  for (byte i = 0; i < LAST_CHANNEL; i++) {
+    receiverChannelMap[i] = readFloat(RECEIVER_CHANNEL_MAP_ADR[i]);    
+  }
+  yawDirection = readLong(YAW_DIRECTION_ADR);
+  flightConfigType = readLong(FLIGHT_CONFIG_TYPE);
+  fastLoopSleepingDelay = readLong(FAST_LOOP_SLEEPING_DELAY);
+
   
   // Leaving separate PID reads as commented for now
   // Previously had issue where EEPROM was not reading right data
   #if defined AltitudeHoldBaro || defined AltitudeHoldRangeFinder
     readPID(BARO_ALTITUDE_HOLD_PID_IDX, ALTITUDE_PID_GAIN_ADR);
-    PID[BARO_ALTITUDE_HOLD_PID_IDX].windupGuard = readFloat(ALTITUDE_WINDUP_ADR);
     #if defined AltitudeHoldBaro
       baroSmoothFactor = readFloat(ALTITUDE_SMOOTH_ADR);
     #endif  
     altitudeHoldBump = readFloat(ALTITUDE_BUMP_ADR);
-    altitudeHoldPanicStickMovement = readFloat(ALTITUDE_PANIC_ADR);
-    minThrottleAdjust = readFloat(ALTITUDE_MIN_THROTTLE_ADR);
-    maxThrottleAdjust = readFloat(ALTITUDE_MAX_THROTTLE_ADR);
+    altitudeHoldMaxVelocitySpeed = readFloat(ALTITUDE_MAX_VELOCITY_SPEED_ADR);
     readPID(ZDAMPENING_PID_IDX, ZDAMP_PID_GAIN_ADR);
   #endif
 
@@ -295,30 +296,18 @@ void readEEPROM() {
   
   // Battery Monitor
   #ifdef BattMonitor
+    isBatteryMonitorEnabled = readFloat(BATT_MONITOR_ENABLED_ADR);
     batteryMonitorAlarmVoltage = readFloat(BATT_ALARM_VOLTAGE_ADR);
     batteryMonitorThrottleTarget = readFloat(BATT_THROTTLE_TARGET_ADR);
     batteryMonitorGoingDownTime = readFloat(BATT_DOWN_TIME_ADR);
   #endif
   
-  windupGuard = readFloat(WINDUPGUARD_ADR);
-  // AKA - added so that each PID has its own windupGuard, will need to be removed once each PID's range is established and put in the EEPROM
-  for (byte i = XAXIS; i < LAST_PID_IDX; i++ ) {
-    #if defined AltitudeHoldBaro
-      if (i != BARO_ALTITUDE_HOLD_PID_IDX) {
-        PID[i].windupGuard = windupGuard;
-      }
-    #else
-      PID[i].windupGuard = windupGuard;
-    #endif      
-  }
-    
   minArmedThrottle = readFloat(MINARMEDTHROTTLE_ADR);
-  aref = readFloat(AREF_ADR);
   flightMode = readFloat(FLIGHTMODE_ADR);
   accelOneG = readFloat(ACCEL_1G_ADR);
-  headingHoldConfig = readFloat(HEADINGHOLD_ADR);
 
-  #if defined (UseGPSNavigator)
+  #if defined (UseGPS)
+    isGpsEnabled = readFloat(GPS_ENABLED_ADR);
     missionNbPoint = readFloat(GPS_MISSION_NB_POINT_ADR);
     readPID(GPSROLL_PID_IDX, GPSROLL_PID_GAIN_ADR);
     readPID(GPSPITCH_PID_IDX, GPSPITCH_PID_GAIN_ADR);
@@ -354,21 +343,31 @@ void readEEPROM() {
 }
 
 void writeEEPROM(){
-  cli(); // Needed so that APM sensor data does not overflow
   writePID(XAXIS, ROLL_PID_GAIN_ADR);
   writePID(YAXIS, PITCH_PID_GAIN_ADR);
   writePID(ATTITUDE_XAXIS_PID_IDX, LEVELROLL_PID_GAIN_ADR);
   writePID(ATTITUDE_YAXIS_PID_IDX, LEVELPITCH_PID_GAIN_ADR);
   writePID(ZAXIS, YAW_PID_GAIN_ADR);
-  writePID(HEADING_HOLD_PID_IDX, HEADING_PID_GAIN_ADR);
-  writePID(ATTITUDE_GYRO_XAXIS_PID_IDX, LEVEL_GYRO_ROLL_PID_GAIN_ADR);
-  writePID(ATTITUDE_GYRO_YAXIS_PID_IDX, LEVEL_GYRO_PITCH_PID_GAIN_ADR);
   
-  writeFloat(rotationSpeedFactor,ROTATION_SPEED_FACTOR_ARD);
+  writeFloat(rotationSpeedFactor, ROTATION_SPEED_FACTOR_ARD);
+  writeFloat(yawSpeedFactor, YAW_SPEED_FACTOR_ARD);
+  
+  writeLong(throttlePIDAdjustmentFactor, THROTTLE_PID_ADJUSTMENT_ADR);
+  
+  writeFloat(receiverTypeUsed, RECEIVER_CONFIG_TYPE_ADR);
+  for(byte channel = 0; channel < LAST_CHANNEL; channel++) {
+    writeLong(receiverMinValue[channel], RECEIVER_DATA[channel].minValue);
+    writeLong(receiverMaxValue[channel], RECEIVER_DATA[channel].maxValue);
+  }
+  for (byte i = 0; i < LAST_CHANNEL; i++) {
+    writeFloat(receiverChannelMap[i], RECEIVER_CHANNEL_MAP_ADR[i]);    
+  }
+  writeLong(yawDirection, YAW_DIRECTION_ADR);
+  writeLong(flightConfigType, FLIGHT_CONFIG_TYPE);
+  writeLong(fastLoopSleepingDelay, FAST_LOOP_SLEEPING_DELAY);
   
   #if defined AltitudeHoldBaro
     writePID(BARO_ALTITUDE_HOLD_PID_IDX, ALTITUDE_PID_GAIN_ADR);
-    writeFloat(PID[BARO_ALTITUDE_HOLD_PID_IDX].windupGuard, ALTITUDE_WINDUP_ADR);
   #endif
 
   #if defined AltitudeHoldBaro || defined AltitudeHoldRangeFinder
@@ -378,17 +377,8 @@ void writeEEPROM(){
       writeFloat(0.0, ALTITUDE_SMOOTH_ADR);
     #endif
     writeFloat(altitudeHoldBump, ALTITUDE_BUMP_ADR);
-    writeFloat(altitudeHoldPanicStickMovement, ALTITUDE_PANIC_ADR);
-    writeFloat(minThrottleAdjust, ALTITUDE_MIN_THROTTLE_ADR);
-    writeFloat(maxThrottleAdjust, ALTITUDE_MAX_THROTTLE_ADR);
+    writeFloat(altitudeHoldMaxVelocitySpeed, ALTITUDE_MAX_VELOCITY_SPEED_ADR);
     writePID(ZDAMPENING_PID_IDX, ZDAMP_PID_GAIN_ADR);
-  #else
-    writeFloat(0.1, ALTITUDE_SMOOTH_ADR);
-    writeFloat(90, ALTITUDE_BUMP_ADR);
-    writeFloat(250, ALTITUDE_PANIC_ADR);
-    writeFloat(-50, ALTITUDE_MIN_THROTTLE_ADR);
-    writeFloat(50, ALTITUDE_MAX_THROTTLE_ADR);
-    writeFloat(0.1, ALTITUDE_SMOOTH_ADR);
   #endif
   
   #ifdef HeadingMagHold
@@ -396,24 +386,16 @@ void writeEEPROM(){
     writeFloat(magBias[YAXIS], YAXIS_MAG_BIAS_ADR);
     writeFloat(magBias[ZAXIS], ZAXIS_MAG_BIAS_ADR);
   #endif
-  writeFloat(windupGuard, WINDUPGUARD_ADR);
-  writeFloat(receiverXmitFactor, XMITFACTOR_ADR);
 
-  for(byte channel = XAXIS; channel < LASTCHANNEL; channel++) {
-    writeFloat(receiverSlope[channel],  RECEIVER_DATA[channel].slope);
-    writeFloat(receiverOffset[channel], RECEIVER_DATA[channel].offset);
-    writeFloat(receiverSmoothFactor[channel], RECEIVER_DATA[channel].smooth_factor);
-  }
 
   writeFloat(minArmedThrottle, MINARMEDTHROTTLE_ADR);
-  writeFloat(aref, AREF_ADR);
   writeFloat(flightMode, FLIGHTMODE_ADR);
-  writeFloat(headingHoldConfig, HEADINGHOLD_ADR);
   writeFloat(accelOneG, ACCEL_1G_ADR);
   writeFloat(SOFTWARE_VERSION, SOFTWARE_VERSION_ADR);
   
   // Battery Monitor
   #ifdef BattMonitor
+    writeFloat(isBatteryMonitorEnabled, BATT_MONITOR_ENABLED_ADR);
     writeFloat(batteryMonitorAlarmVoltage, BATT_ALARM_VOLTAGE_ADR);
     writeFloat(batteryMonitorThrottleTarget, BATT_THROTTLE_TARGET_ADR);
     writeFloat(batteryMonitorGoingDownTime, BATT_DOWN_TIME_ADR);
@@ -423,12 +405,10 @@ void writeEEPROM(){
   #if defined (AltitudeHoldRangeFinder)
     writeFloat(maxRangeFinderRange, RANGE_FINDER_MAX_ADR);
     writeFloat(minRangeFinderRange, RANGE_FINDER_MIN_ADR);
-  #else
-    writeFloat(0, RANGE_FINDER_MAX_ADR);
-    writeFloat(0, RANGE_FINDER_MIN_ADR);
   #endif
   
-  #if defined (UseGPSNavigator)
+  #if defined (UseGPS)
+    writeFloat(isGpsEnabled, GPS_ENABLED_ADR);
     writeFloat(missionNbPoint, GPS_MISSION_NB_POINT_ADR);
     writePID(GPSROLL_PID_IDX, GPSROLL_PID_GAIN_ADR);
     writePID(GPSPITCH_PID_IDX, GPSPITCH_PID_GAIN_ADR);
@@ -460,7 +440,6 @@ void writeEEPROM(){
       writeFloat(servoTXChannels, SERVOTXCHANNELS_ADR);
     #endif
   #endif 
-  sei(); // Restart interrupts
 }
 
 void initSensorsZeroFromEEPROM() {
@@ -487,16 +466,6 @@ void storeSensorsZeroToEEPROM() {
   writeFloat(runTimeAccelBias[YAXIS], YAXIS_ACCEL_BIAS_ADR);
   writeFloat(accelScaleFactor[ZAXIS], ZAXIS_ACCEL_SCALE_FACTOR_ADR);
   writeFloat(runTimeAccelBias[ZAXIS], ZAXIS_ACCEL_BIAS_ADR);
-}
-
-void initReceiverFromEEPROM() {
-  receiverXmitFactor = readFloat(XMITFACTOR_ADR);
-  
-  for(byte channel = XAXIS; channel < LASTCHANNEL; channel++) {
-    receiverSlope[channel] = readFloat(RECEIVER_DATA[channel].slope);
-    receiverOffset[channel] = readFloat(RECEIVER_DATA[channel].offset);
-    receiverSmoothFactor[channel] = readFloat(RECEIVER_DATA[channel].smooth_factor);
-  }
 }
 
 #endif // _AQ_DATA_STORAGE_H_

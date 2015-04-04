@@ -27,15 +27,11 @@
 float hdgX = 0.0;
 float hdgY = 0.0;
 
-float measuredMagX = 0.0;
-float measuredMagY = 0.0;
-float measuredMagZ = 0.0;
 float measuredMag[3] = {0.0,0.0,0.0};
 float rawMag[3] = {0.0,0.0,0.0};
 float magBias[3] = {0.0,0.0,0.0};
 
 void initializeMagnetometer();
-bool detectMagnetometer(int addr);
 void measureMagnetometer(float roll, float pitch);
 
 const float getHdgXY(byte axis) {
@@ -44,10 +40,6 @@ const float getHdgXY(byte axis) {
   } else {
     return hdgY;
   }
-}
-
-const int getMagnetometerRawData(byte axis) {
-  return rawMag[axis];
 }
 
 const int getMagnetometerData(byte axis) {

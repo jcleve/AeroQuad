@@ -25,8 +25,29 @@
 #ifndef _AQ_PROCESS_FLIGHT_CONTROL_H_
 #define _AQ_PROCESS_FLIGHT_CONTROL_H_
 
-#define ATTITUDE_SCALING (0.75 * PWM2RAD)
 
+#if defined (USE_TPA_ADJUSTMENT)
+  #define TPA_THROTTLE 800.0
+  void processThrottlePIDAdjustment() 
+  {
+    if (!inFlight) {
+      return;
+    }
+    float throttleAdjustmentPercentage = TPA_THROTTLE - (2000 - receiverCommand[receiverChannelMap[THROTTLE]]);
+    throttleAdjustmentPercentage = throttleAdjustmentPercentage < 0 ? 0 : throttleAdjustmentPercentage;
+    const float pidPercentToRemove = map(throttleAdjustmentPercentage, 0.0, TPA_THROTTLE, 0.0, throttlePIDAdjustmentFactor);
+    
+    PID[RATE_XAXIS_PID_IDX].P = userRateRollP - (pidPercentToRemove * userRateRollP / 100.0);
+    PID[RATE_XAXIS_PID_IDX].I = userRateRollI - (pidPercentToRemove * userRateRollI / 100.0);
+    PID[RATE_XAXIS_PID_IDX].D = userRateRollD - (pidPercentToRemove * userRateRollD / 100.0);
+    PID[RATE_YAXIS_PID_IDX].P = userRatePitchP - (pidPercentToRemove * userRatePitchP / 100.0);
+    PID[RATE_YAXIS_PID_IDX].I = userRatePitchI - (pidPercentToRemove * userRatePitchI / 100.0);
+    PID[RATE_YAXIS_PID_IDX].D = userRatePitchD - (pidPercentToRemove * userRatePitchD / 100.0);
+    PID[ZAXIS_PID_IDX].P = userYawP - (pidPercentToRemove * userYawP / 100.0);
+    PID[ZAXIS_PID_IDX].I = userYawI - (pidPercentToRemove * userYawI / 100.0);
+    PID[ZAXIS_PID_IDX].D = userYawD - (pidPercentToRemove * userYawD / 100.0);
+  }
+#endif
 
 /**
  * calculateFlightError
@@ -34,27 +55,56 @@
  * Calculate roll/pitch axis error with gyro/accel data to
  * compute motor command thrust so used command are executed
  */
+float gyroDesiredRollRate = 0.0;
+float gyroDesiredPitchRate = 0.0;
+
 void calculateFlightError()
 {
-  #if defined (UseGPSNavigator)
-    if (navigationState == ON || positionHoldState == ON) {
-      float rollAttitudeCmd  = updatePID((receiverCommand[XAXIS] - receiverZero[XAXIS] + gpsRollAxisCorrection) * ATTITUDE_SCALING, kinematicsAngle[XAXIS], &PID[ATTITUDE_XAXIS_PID_IDX]);
-      float pitchAttitudeCmd = updatePID((receiverCommand[YAXIS] - receiverZero[YAXIS] + gpsPitchAxisCorrection) * ATTITUDE_SCALING, -kinematicsAngle[YAXIS], &PID[ATTITUDE_YAXIS_PID_IDX]);
-      motorAxisCommandRoll   = updatePID(rollAttitudeCmd, gyroRate[XAXIS], &PID[ATTITUDE_GYRO_XAXIS_PID_IDX]);
-      motorAxisCommandPitch  = updatePID(pitchAttitudeCmd, -gyroRate[YAXIS], &PID[ATTITUDE_GYRO_YAXIS_PID_IDX]);
-    }
-    else
-  #endif
-  if (flightMode == ATTITUDE_FLIGHT_MODE) {
-    float rollAttitudeCmd  = updatePID((receiverCommand[XAXIS] - receiverZero[XAXIS]) * ATTITUDE_SCALING, kinematicsAngle[XAXIS], &PID[ATTITUDE_XAXIS_PID_IDX]);
-    float pitchAttitudeCmd = updatePID((receiverCommand[YAXIS] - receiverZero[YAXIS]) * ATTITUDE_SCALING, -kinematicsAngle[YAXIS], &PID[ATTITUDE_YAXIS_PID_IDX]);
-    motorAxisCommandRoll   = updatePID(rollAttitudeCmd, gyroRate[XAXIS], &PID[ATTITUDE_GYRO_XAXIS_PID_IDX]);
-    motorAxisCommandPitch  = updatePID(pitchAttitudeCmd, -gyroRate[YAXIS], &PID[ATTITUDE_GYRO_YAXIS_PID_IDX]);
+  const int userRollCommand  = map(receiverCommand[receiverChannelMap[XAXIS]] - 1500, -500 , 500, -gyroOneMeterSecADCFactor, gyroOneMeterSecADCFactor);
+  const int userPitchCommand = map(receiverCommand[receiverChannelMap[YAXIS]] - 1500, -500 , 500, -gyroOneMeterSecADCFactor, gyroOneMeterSecADCFactor);
+  
+  switch(flightMode)
+  {
+//    #if defined (UseGPS)
+//      if (navigationState == ON || positionHoldState == ON) {
+//        gyroDesiredRollRate  = updatePID((userRollCommand * 1.3 + gpsRollAxisCorrection), kinematicsAngle[XAXIS] * gyroOneMeterSecADCFactor, &PID[ATTITUDE_XAXIS_PID_IDX]);
+//        gyroDesiredPitchRate = updatePID((userPitchCommand * 1.3 + gpsPitchAxisCorrection), -kinematicsAngle[YAXIS] * gyroOneMeterSecADCFactor, &PID[ATTITUDE_YAXIS_PID_IDX]);
+//      }
+//      else
+//    #endif
+    case ATTITUDE_FLIGHT_MODE:
+      gyroDesiredRollRate  = updatePID((userRollCommand * 0.75), kinematicsAngle[XAXIS] * gyroOneMeterSecADCFactor, &PID[ATTITUDE_XAXIS_PID_IDX]);
+      gyroDesiredPitchRate = updatePID((userPitchCommand * 0.75), -kinematicsAngle[YAXIS] * gyroOneMeterSecADCFactor, &PID[ATTITUDE_YAXIS_PID_IDX]);
+      break;
+    case RATE_FLIGHT_MODE:  // accro
+      gyroDesiredRollRate = userRollCommand * map((abs(receiverCommand[receiverChannelMap[XAXIS]] - 1500)), 0 , 500, 100, rotationSpeedFactor*100) / 100.0;
+      gyroDesiredPitchRate = userPitchCommand * map((abs(receiverCommand[receiverChannelMap[YAXIS]] - 1500)), 0 , 500, 100, rotationSpeedFactor*100) / 100.0;
+      break;
+    #if defined (USE_HORIZON_MODE)
+    case HORIZON_FLIGHT_MODE:
+      const float rollRateRatiaux = (abs(receiverCommand[receiverChannelMap[XAXIS]] - 1500) - 250) * 0.4;
+      const float pitchRateRatiaux = (abs(receiverCommand[receiverChannelMap[YAXIS]] - 1500) - 250) * 0.4;
+      const float rateRatiaux = constrain(max(rollRateRatiaux, pitchRateRatiaux), 0, 250.0) / 100.0;
+      const float attitudeRatiaux = 1.0 - rateRatiaux;
+      
+      const float rollAttitudeCmd = attitudeRatiaux * updatePID((userRollCommand * 0.75), kinematicsAngle[XAXIS] * gyroOneMeterSecADCFactor, &PID[ATTITUDE_XAXIS_PID_IDX]);
+      float rollRateCommand = rateRatiaux * userRollCommand * map((abs(receiverCommand[receiverChannelMap[XAXIS]] - 1500)), 0 , 500, 100, rotationSpeedFactor*100) / 100.0;
+      if (userRollCommand < 0 && rollRateCommand > 0) {
+        rollRateCommand = -rollRateCommand;
+      }
+      gyroDesiredRollRate = rollAttitudeCmd + rollRateCommand;
+  
+      const float pitchAttitudeCmd = attitudeRatiaux * updatePID((userPitchCommand * 0.75), -kinematicsAngle[YAXIS] * gyroOneMeterSecADCFactor, &PID[ATTITUDE_YAXIS_PID_IDX]);
+      float pitchRateCommand = rateRatiaux * userPitchCommand * map((abs(receiverCommand[receiverChannelMap[YAXIS]] - 1500)), 0 , 500, 100, rotationSpeedFactor*100) / 100.0;
+      if (userPitchCommand < 0 && pitchRateCommand > 0) {
+        pitchRateCommand = -pitchRateCommand;
+      }
+      gyroDesiredPitchRate = pitchAttitudeCmd + pitchRateCommand;
+    #endif
   }
-  else {
-    motorAxisCommandRoll = updatePID(getReceiverSIData(XAXIS), gyroRate[XAXIS]*rotationSpeedFactor, &PID[RATE_XAXIS_PID_IDX]);
-    motorAxisCommandPitch = updatePID(getReceiverSIData(YAXIS), -gyroRate[YAXIS]*rotationSpeedFactor, &PID[RATE_YAXIS_PID_IDX]);
-  }
+  
+  motorAxisCommandRoll = updatePID(gyroDesiredRollRate, gyroADCData[XAXIS], &PID[RATE_XAXIS_PID_IDX]);
+  motorAxisCommandPitch = updatePID(gyroDesiredPitchRate, -gyroADCData[YAXIS], &PID[RATE_YAXIS_PID_IDX]);
 }
 
 /**
@@ -75,7 +125,7 @@ void processCalibrateESC()
     break;
   case 5:
     for (byte motor = 0; motor < LASTMOTOR; motor++)
-      motorCommand[motor] = constrain(motorConfiguratorCommand[motor], 1000, 1200); 
+      motorCommand[motor] = constrain(motorConfiguratorCommand[motor], 1000, 1200);
     safetyCheck = ON;
     break;
   default:
@@ -97,124 +147,78 @@ void processCalibrateESC()
  * alarm was reach, and the throttle is slowly decrease for a minute til
  * batteryMonitorThrottle that is configurable with the configurator
  */
-#if defined BattMonitor && defined BattMonitorAutoDescent
-  void processBatteryMonitorThrottleAdjustment() {
-    
-    if (batteryMonitorAlarmCounter < BATTERY_MONITOR_MAX_ALARM_COUNT) {
-      if (batteryAlarm) {
-        batteryMonitorAlarmCounter++;
-      }
-    }
-    else {
-      #if defined AltitudeHoldBaro || defined AltitudeHoldRangeFinder
-        if (altitudeHoldState == ON) {
-          #if defined AltitudeHoldBaro
-            baroAltitudeToHoldTarget -= 0.01;
-          #endif
-          #if defined AltitudeHoldRangeFinder
-            if (sonarAltitudeToHoldTarget != INVALID_RANGE) {
-              sonarAltitudeToHoldTarget -= 0.01;
-            }
-          #endif
-        }
-        else {
-      #endif
-          if (batteryMonitorStartThrottle == 0) {  // init battery monitor throttle correction!
-            batteryMonitorStartTime = millis();
-            if (throttle < batteryMonitorThrottleTarget) {
-              batteryMonitorStartThrottle = batteryMonitorThrottleTarget;
-            }
-            else {
-              batteryMonitorStartThrottle = throttle; 
-            }
-          }
-          int batteryMonitorThrottle = map(millis()-batteryMonitorStartTime, 0, batteryMonitorGoingDownTime, batteryMonitorStartThrottle, batteryMonitorThrottleTarget);
-          if (batteryMonitorThrottle < batteryMonitorThrottleTarget) {
-            batteryMonitorThrottle = batteryMonitorThrottleTarget;
-          }
-          if (throttle < batteryMonitorThrottle) {
-            batteyMonitorThrottleCorrection = 0;
-          }
-          else {
-            batteyMonitorThrottleCorrection = batteryMonitorThrottle - throttle;
-          }
-      #if defined AltitudeHoldBaro || defined AltitudeHoldRangeFinder
-        }
-      #endif
-    }
-  }
-#endif  
+//#if defined BattMonitor && defined BattMonitorAutoDescent
+//  void processBatteryMonitorThrottleAdjustment() {
+//    
+//    if (batteryMonitorAlarmCounter < BATTERY_MONITOR_MAX_ALARM_COUNT) {
+//      if (batteryAlarm) {
+//        batteryMonitorAlarmCounter++;
+//      }
+//    }
+//    else {
+//      #if defined AltitudeHoldBaro
+//        if (altitudeHoldState == ON) {
+//            baroAltitudeToHoldTarget -= 0.01;
+//        }
+//        else {
+//          if (batteryMonitorStartThrottle == 0) {  // init battery monitor throttle correction!
+//            batteryMonitorStartTime = millis();
+//            if (throttle < batteryMonitorThrottleTarget) {
+//              batteryMonitorStartThrottle = batteryMonitorThrottleTarget;
+//            }
+//            else {
+//              batteryMonitorStartThrottle = throttle; 
+//            }
+//          }
+//          int batteryMonitorThrottle = map(millis()-batteryMonitorStartTime, 0, batteryMonitorGoingDownTime, batteryMonitorStartThrottle, batteryMonitorThrottleTarget);
+//          if (batteryMonitorThrottle < batteryMonitorThrottleTarget) {
+//            batteryMonitorThrottle = batteryMonitorThrottleTarget;
+//          }
+//          if (throttle < batteryMonitorThrottle) {
+//            batteyMonitorThrottleCorrection = 0;
+//          }
+//          else {
+//            batteyMonitorThrottleCorrection = batteryMonitorThrottle - throttle;
+//          }
+//        }
+//      #endif
+//    }
+//  }
+//#endif  
 
 
-#if defined AutoLanding
-  #define BARO_AUTO_LANDING_DESCENT_SPEED 0.008
-  #define SONAR_AUTO_LANDING_DESCENT_SPEED 0.005
-  void processAutoLandingAltitudeCorrection() {
-    if (autoLandingState != OFF) {   
-
-      if (autoLandingState == BARO_AUTO_DESCENT_STATE) {
-        baroAltitudeToHoldTarget -= BARO_AUTO_LANDING_DESCENT_SPEED;
-        if (isOnRangerRange(rangeFinderRange[ALTITUDE_RANGE_FINDER_INDEX])) { 
-          autoLandingState = SONAR_AUTO_DESCENT_STATE;
-        }
-      }
-      else if (autoLandingState == SONAR_AUTO_DESCENT_STATE) {
-        baroAltitudeToHoldTarget -= BARO_AUTO_LANDING_DESCENT_SPEED;
-        sonarAltitudeToHoldTarget -= SONAR_AUTO_LANDING_DESCENT_SPEED;
-        if (rangeFinderRange[ALTITUDE_RANGE_FINDER_INDEX] < 0.5) {
-          autoLandingState = MOTOR_AUTO_DESCENT_STATE;
-        }
-      }
-      else {
-        autoLandingThrottleCorrection -= 1;
-        baroAltitudeToHoldTarget -= BARO_AUTO_LANDING_DESCENT_SPEED;
-        sonarAltitudeToHoldTarget -= SONAR_AUTO_LANDING_DESCENT_SPEED;
-
-        if (((throttle + autoLandingThrottleCorrection) < 1000) || (rangeFinderRange[ALTITUDE_RANGE_FINDER_INDEX] < 0.20)) {
-          commandAllMotors(MINCOMMAND);
-          motorArmed = OFF;
-        }
-      }
-    }
- }
-#endif
-
-
-/**
- * processThrottleCorrection
- * 
- * This function will add some throttle imput if the craft is angled
- * this prevent the craft to loose altitude when angled.
- * it also add the battery throttle correction in case
- * of we are in auto-descent.
- * 
- * Special thank to Ziojo for this.
- */
-void processThrottleCorrection() {
- 
-  int throttleAdjust = 0;
-  #if defined UseGPSNavigator
-    if (navigationState == ON || positionHoldState == ON) {
-      throttleAdjust = throttle / (cos (kinematicsAngle[XAXIS]*0.55) * cos (kinematicsAngle[YAXIS]*0.55));
-      throttleAdjust = constrain ((throttleAdjust - throttle), 0, 50); //compensate max  +/- 25 deg XAXIS or YAXIS or  +/- 18 ( 18(XAXIS) + 18(YAXIS))
-    }
-  #endif
-  #if defined BattMonitorAutoDescent
-    throttleAdjust += batteyMonitorThrottleCorrection;
-  #endif
-  #if defined (AutoLanding)
-    #if defined BattMonitorAutoDescent
-      if (batteyMonitorThrottleCorrection != 0) { // don't auto land in the same time that the battery monitor do auto descent, or Override the auto descent to land, TBD
-        throttleAdjust += autoLandingThrottleCorrection;
-      }
-    #else
-      throttleAdjust += autoLandingThrottleCorrection;
-    #endif
-  #endif
-  
-  throttle = constrain((throttle + throttleAdjust),MINCOMMAND,MAXCOMMAND-150);  // limmit throttle to leave some space for motor correction in max throttle manuever
-}
-
+//#if defined AutoLanding
+//  #define BARO_AUTO_LANDING_DESCENT_SPEED 0.008
+//  #define SONAR_AUTO_LANDING_DESCENT_SPEED 0.005
+//  void processAutoLandingAltitudeCorrection() {
+//    if (autoLandingState != OFF) {   
+//
+//      if (autoLandingState == BARO_AUTO_DESCENT_STATE) {
+//        baroAltitudeToHoldTarget -= BARO_AUTO_LANDING_DESCENT_SPEED;
+//        if (isOnRangerRange(rangeFinderRange[ALTITUDE_RANGE_FINDER_INDEX])) { 
+//          autoLandingState = SONAR_AUTO_DESCENT_STATE;
+//        }
+//      }
+//      else if (autoLandingState == SONAR_AUTO_DESCENT_STATE) {
+//        baroAltitudeToHoldTarget -= BARO_AUTO_LANDING_DESCENT_SPEED;
+//        sonarAltitudeToHoldTarget -= SONAR_AUTO_LANDING_DESCENT_SPEED;
+//        if (rangeFinderRange[ALTITUDE_RANGE_FINDER_INDEX] < 0.5) {
+//          autoLandingState = MOTOR_AUTO_DESCENT_STATE;
+//        }
+//      }
+//      else {
+//        autoLandingThrottleCorrection -= 1;
+//        baroAltitudeToHoldTarget -= BARO_AUTO_LANDING_DESCENT_SPEED;
+//        sonarAltitudeToHoldTarget -= SONAR_AUTO_LANDING_DESCENT_SPEED;
+//
+//        if (((throttle + autoLandingThrottleCorrection) < 1000) || (rangeFinderRange[ALTITUDE_RANGE_FINDER_INDEX] < 0.20)) {
+//          commandAllMotors(MINCOMMAND);
+//          motorArmed = OFF;
+//        }
+//      }
+//    }
+// }
+//#endif
 
 /**
  * processHardManuevers
@@ -224,10 +228,10 @@ void processThrottleCorrection() {
  */
 void processHardManuevers() {
   
-  if ((receiverCommand[XAXIS] < MINCHECK) ||
-      (receiverCommand[XAXIS] > MAXCHECK) ||
-      (receiverCommand[YAXIS] < MINCHECK) ||
-      (receiverCommand[YAXIS] > MAXCHECK)) {  
+  if ((receiverCommand[receiverChannelMap[XAXIS]] < MINCHECK) ||
+      (receiverCommand[receiverChannelMap[XAXIS]] > MAXCHECK) ||
+      (receiverCommand[receiverChannelMap[YAXIS]] < MINCHECK) ||
+      (receiverCommand[receiverChannelMap[YAXIS]] > MAXCHECK)) {  
         
     for (int motor = 0; motor < LASTMOTOR; motor++) {
       motorMinCommand[motor] = minArmedThrottle;
@@ -277,55 +281,20 @@ void processFlightControl() {
   
   // ********************** Update Yaw ***************************************
   processHeading();
-  
-  if (frameCounter % THROTTLE_ADJUST_TASK_SPEED == 0) {  // 50hz task
-    
-    // ********************** Process position hold or navigation **************************
-    #if defined (UseGPS)
-      #if defined (UseGPSNavigator)
-        processGpsNavigation();
-      #endif  
-    #endif
-    
-    // ********************** Process Altitude hold **************************
-    #if defined AltitudeHoldBaro || defined AltitudeHoldRangeFinder
-      processAltitudeHold();
-    #else
-      throttle = receiverCommand[THROTTLE];
-    #endif
-    
-    // ********************** Process Battery monitor hold **************************
-    #if defined BattMonitor && defined BattMonitorAutoDescent
-      processBatteryMonitorThrottleAdjustment();
-    #endif
-
-    // ********************** Process Auto-Descent  **************************
-    #if defined AutoLanding
-      processAutoLandingAltitudeCorrection();
-    #endif
-    
-    // ********************** Process throttle correction ********************
-    processThrottleCorrection();
-  }
 
   // ********************** Calculate Motor Commands *************************
   if (motorArmed && safetyCheck) {
-    applyMotorCommand();
+    (*applyMotorCommand[flightConfigType])();
   } 
 
   // *********************** process min max motor command *******************
   processMinMaxCommand();
 
   // If throttle in minimum position, don't apply yaw
-  if (receiverCommand[THROTTLE] < MINCHECK) {
+  if (receiverCommand[receiverChannelMap[THROTTLE]] < MINCHECK) {
     for (byte motor = 0; motor < LASTMOTOR; motor++) {
       motorMinCommand[motor] = minArmedThrottle;
-      if (inFlight && flightMode == RATE_FLIGHT_MODE) {
-        motorMaxCommand[motor] = MAXCOMMAND;
-      }
-      else {
-        motorMaxCommand[motor] = minArmedThrottle;
-      }
+      motorMaxCommand[motor] = minArmedThrottle;
     }
   }
   
@@ -333,6 +302,7 @@ void processFlightControl() {
   for (byte motor = 0; motor < LASTMOTOR; motor++) {
     motorCommand[motor] = constrain(motorCommand[motor], motorMinCommand[motor], motorMaxCommand[motor]);
   }
+  
 
   // ESC Calibration
   if (motorArmed == OFF) {
