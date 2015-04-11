@@ -32,6 +32,7 @@
 #include "FlightControlVariable.h"
 
 void applyMotorCommandQuadX() {
+  yawDirection = 1;
   motorCommand[MOTOR1] = throttle - motorAxisCommandPitch + motorAxisCommandRoll - (yawDirection * motorAxisCommandYaw);
   motorCommand[MOTOR2] = throttle - motorAxisCommandPitch - motorAxisCommandRoll + (yawDirection * motorAxisCommandYaw);
   motorCommand[MOTOR4] = throttle + motorAxisCommandPitch + motorAxisCommandRoll + (yawDirection * motorAxisCommandYaw);
