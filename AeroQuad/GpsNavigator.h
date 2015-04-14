@@ -34,9 +34,9 @@
 #define GPS_SPEED_SMOOTH_VALUE 0.5
 #define GPS_COURSE_SMOOTH_VALUE 0.5
 #define POSITION_HOLD_ORIGIN 100.0 // in cm
-#define MAX_POSITION_HOLD_CRAFT_ANGLE_CORRECTION 200.0
+#define MAX_POSITION_HOLD_CRAFT_ANGLE_CORRECTION 100.0
 #define POSITION_HOLD_SPEED 50.0  
-#define POSITION_HOLD_PLANE 250.0
+#define POSITION_HOLD_PLANE 500.0
 #define MAX_YAW_AXIS_CORRECTION 200.0  
 
 byte countToInitHome = 0;
@@ -360,7 +360,7 @@ void computeRollPitchCraftAxisCorrection() {
   //float weight = constrain(getHoldCorrectionExpCurveWeight(distanceToDestination),0,1);
   
   gpsRollAxisCorrection = constrain(gpsRollAxisCorrection * weight, -maxCraftAngleCorrection, maxCraftAngleCorrection);
-  gpsPitchAxisCorrection = constrain(gpsPitchAxisCorrection * weight, -maxCraftAngleCorrection, maxCraftAngleCorrection); 
+  gpsPitchAxisCorrection = constrain(gpsPitchAxisCorrection * weight, -maxCraftAngleCorrection, maxCraftAngleCorrection);    
 }
 
 /**

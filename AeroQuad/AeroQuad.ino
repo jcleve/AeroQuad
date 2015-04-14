@@ -94,7 +94,8 @@
 
   // Altitude declaration
   #ifdef AltitudeHoldBaro
-    #define BMP085
+    //#define BMP085
+    #define MS5611
   #endif
   #ifdef AltitudeHoldRangeFinder
     #define XLMAXSONAR 
@@ -257,15 +258,6 @@
   #include <HeadingFusionProcessorMARG.h>
   #include <Magnetometer_HMC5883L.h>
 #endif
-//#if defined(HMC5843)
-//  #include <HeadingFusionProcessorMARG.h>
-//  #include <Magnetometer_HMC5843.h>
-//#elif defined(10DOF_HMC5883L) || defined(SPARKFUN_9DOF_5883L) || defined(SPARKFUN_5883L_BOB) || defined(HMC5883L)
-//  #include <HeadingFusionProcessorMARG.h>
-//  #include <Magnetometer_HMC5883L.h>
-//#elif defined(COMPASS_CHR6DM)
-//#endif
-
 //********************************************************
 //******* ALTITUDE HOLD BAROMETER DECLARATION ************
 //********************************************************
