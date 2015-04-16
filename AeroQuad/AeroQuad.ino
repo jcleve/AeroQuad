@@ -889,7 +889,7 @@ void setup() {
   SERIAL_BEGIN(BAUD);
   pinMode(LED_Green, OUTPUT);
   digitalWrite(LED_Green, LOW);
-
+  
   initCommunication();
   readEEPROM(); 
   
@@ -985,6 +985,37 @@ void setup() {
   
 }
 
+/*******************************************************************
+ * Compute kinematics
+ ******************************************************************/
+void computerKinematics() {
+  
+  for (byte axis = XAXIS; axis <= ZAXIS; axis++) {
+    filteredAccel[axis] = computeFourthOrder(meterPerSecSec[axis], &fourthOrder[axis]);
+  }
+  
+  const double accelMagnetude = sqrt((filteredAccel[XAXIS]*filteredAccel[XAXIS]) + 
+                                     (filteredAccel[YAXIS]*filteredAccel[YAXIS]) + 
+                                     (filteredAccel[ZAXIS]*filteredAccel[ZAXIS])) - accelOneG;
+                                     
+  if (accelMagnetude > 1.15 || accelMagnetude < 0.85) {
+    for (byte axis = XAXIS; axis <= ZAXIS; axis++) {
+      float filterValue = meterPerSecSec[axis] - filteredAccel[axis];
+      if (filteredAccel[axis] > meterPerSecSec[axis]) {
+        filterValue = filteredAccel[axis] - meterPerSecSec[axis];
+      }
+      filteredAccel[axis] = filteredAccel[axis] - filterValue;
+    }
+  }
+  
+  #if defined (HeadingMagHold) 
+    calculateKinematicsMAGR(gyroRate[XAXIS], gyroRate[YAXIS], gyroRate[ZAXIS], filteredAccel[XAXIS], filteredAccel[YAXIS], filteredAccel[ZAXIS], measuredMag[XAXIS], measuredMag[YAXIS], measuredMag[ZAXIS]);
+    magDataUpdate = false;
+  #else
+    calculateKinematicsAGR(gyroRate[XAXIS], gyroRate[YAXIS], gyroRate[ZAXIS], filteredAccel[XAXIS], filteredAccel[YAXIS], filteredAccel[ZAXIS]);
+  #endif
+
+}
 
 /*******************************************************************
  * Fast task 500Hz or 400hz or 100Hz user selectable
@@ -992,12 +1023,11 @@ void setup() {
 void processFastTask() {
   G_Dt = (currentTime - fastTaskPreviousTime) / 1000000.0;
   fastTaskPreviousTime = currentTime;
+
+  evaluateGyroRate();  
+  evaluateMetersPerSec();
   
-  evaluateGyroRate();
-  for (int axis = XAXIS; axis <= ZAXIS; axis++) {
-    fastTaskGyroRate[axis] += gyroRate[axis];
-  }
-  fastTaskGyroSampleCount++;
+  computerKinematics();
   
   processFlightControl();
 }
@@ -1010,32 +1040,6 @@ void process100HzTask() {
   
   G_Dt = (currentTime - hundredHZpreviousTime) / 1000000.0;
   hundredHZpreviousTime = currentTime;
-  
-  evaluateMetersPerSec();
-  
-  for (byte axis = XAXIS; axis <= ZAXIS; axis++) {
-    filteredAccel[axis] = computeFourthOrder(meterPerSecSec[axis], &fourthOrder[axis]);
-    gyroRate[axis] = fastTaskGyroRate[axis] / fastTaskGyroSampleCount;
-    fastTaskGyroRate[axis] = 0;
-  }
-  fastTaskGyroSampleCount = 0;
-  
-  const double accelMagnetude = sqrt((filteredAccel[XAXIS]*filteredAccel[XAXIS]) + 
-                                     (filteredAccel[YAXIS]*filteredAccel[YAXIS]) + 
-                                     (filteredAccel[ZAXIS]*filteredAccel[ZAXIS])) - accelOneG;
-  if (accelMagnetude > 1.15) {
-    for (byte axis = XAXIS; axis <= ZAXIS; axis++) {
-      filteredAccel[axis] = filteredAccel[axis] - accelMagnetude;
-    }
-  }
-  
-  #if defined (HeadingMagHold) 
-    calculateKinematicsMAGR(gyroRate[XAXIS], gyroRate[YAXIS], gyroRate[ZAXIS], filteredAccel[XAXIS], filteredAccel[YAXIS], filteredAccel[ZAXIS], measuredMag[XAXIS], measuredMag[YAXIS], measuredMag[ZAXIS]);
-    magDataUpdate = false;
-  #else
-    calculateKinematicsAGR(gyroRate[XAXIS], gyroRate[YAXIS], gyroRate[ZAXIS], filteredAccel[XAXIS], filteredAccel[YAXIS], filteredAccel[ZAXIS]);
-  #endif
-
 
   #if defined (AltitudeHoldBaro)
     if (vehicleState & BARO_DETECTED)
@@ -1044,7 +1048,9 @@ void process100HzTask() {
         altHoldInitCountdown--;
       }
       else {
-        const float filteredZAccel = -(meterPerSecSec[XAXIS] * kinematicCorrectedAccel[XAXIS] + meterPerSecSec[YAXIS] * kinematicCorrectedAccel[YAXIS] + meterPerSecSec[ZAXIS] * kinematicCorrectedAccel[ZAXIS]);
+        const float filteredZAccel = -(meterPerSecSec[XAXIS] * kinematicCorrectedAccel[XAXIS] + 
+                                       meterPerSecSec[YAXIS] * kinematicCorrectedAccel[YAXIS] + 
+                                       meterPerSecSec[ZAXIS] * kinematicCorrectedAccel[ZAXIS]);
   
         computeVelocity(filteredZAccel, G_Dt);
         
@@ -1070,7 +1076,6 @@ void process100HzTask() {
       processCameraTXControl();
     #endif
   #endif       
-
 }
 
 /*******************************************************************
@@ -1177,6 +1182,9 @@ void process1HzTask() {
     
     sendSerialHeartbeat();   
   #endif
+  static boolean ledHigh = false;
+  digitalWrite(LED_Green, ledHigh ? HIGH : LOW);
+  ledHigh = !ledHigh;
 }
 
 /*******************************************************************
@@ -1189,6 +1197,7 @@ void loop () {
   currentTime = micros();
   deltaTime = currentTime - previousTime;
 
+  
   measureCriticalSensors();
   
   if (currentTime >= (fastTaskPreviousTime + fastLoopSleepingDelay)) {  // 2500 = 400Hz, 2000 = 500Hz, 10000 = 100Hz

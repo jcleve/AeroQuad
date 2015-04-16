@@ -92,8 +92,6 @@ float yawSpeedFactor = 2.5;
 int throttlePIDAdjustmentFactor = 0;
   
   
-float fastTaskGyroRate[3] = {0.0,0.0,0.0};
-byte fastTaskGyroSampleCount = 0;
 unsigned long fastTaskPreviousTime = 0;
 int fastLoopSleepingDelay = 2500;
 
