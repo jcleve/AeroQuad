@@ -30,7 +30,7 @@
 
 //#define DEBUG_MS5611
 #ifndef USE_MS5611_ALTERNATE_ADDRESS
-  #define MS5611_I2C_ADDRESS         0x76
+  #define MS5611_I2C_ADDRESS         0x77 // was 0x76 cleve
 #else
   #define MS5611_I2C_ADDRESS         0x77
 #endif

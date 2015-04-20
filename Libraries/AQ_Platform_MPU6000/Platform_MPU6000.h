@@ -193,7 +193,7 @@ void initializeMPU6000Sensors()
   MPU6000_SpiHighSpeed();
   
   #if defined (__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
-	//MPU6000_WriteReg(MPUREG_INT_PIN_CFG, MPU6000_ReadReg(MPUREG_INT_PIN_CFG) | 2); // enable I2C bypass
+	MPU6000_WriteReg(MPUREG_INT_PIN_CFG, MPU6000_ReadReg(MPUREG_INT_PIN_CFG) | 2); // enable I2C bypass
   #endif
 }
 
