@@ -51,43 +51,40 @@
 
 #include <AQMath.h>
 
-float Kp = 0.0;                   					// proportional gain governs rate of convergence to accelerometer/magnetometer
-float Ki = 0.0;                   					// integral gain governs rate of convergence of gyroscope biases
-float halfT = 0.0;                					// half the sample period
-float q0 = 0.0, q1 = 0.0, q2 = 0.0, q3 = 0.0;       // quaternion elements representing the estimated orientation
-float exInt = 0.0, eyInt = 0.0, ezInt = 0.0;  		// scaled integral error
-  
-float previousEx = 0.0;
-float previousEy = 0.0;
-float previousEz = 0.0;
+
+double exInt = 0.0, eyInt = 0.0, ezInt = 0.0;  		// scaled integral error
+double Kp, Ki;  
 
 ////////////////////////////////////////////////////////////////////////////////
 // argUpdate
 ////////////////////////////////////////////////////////////////////////////////
-void argUpdate(float gx, float gy, float gz, float ax, float ay, float az, float G_Dt) {
+void calculateKinematicsAGR(double gx, double gy, double gz, double ax, double ay, double az) {
   
-  float norm;
-  float vx, vy, vz;
-  float q0i, q1i, q2i, q3i;
-  float ex, ey, ez;
-    
-  halfT = G_Dt/2;
+  unsigned long currentKinematicTime = micros();
+  double dt = (currentKinematicTime - kinematicPreviousTime) / 1000000.0;
+  kinematicPreviousTime = currentKinematicTime;
+  
+  halfT = dt / 2.0;
   
   // normalise the measurements
-  norm = sqrt(ax*ax + ay*ay + az*az);       
+  double norm = sqrt(ax*ax + ay*ay + az*az);       
+//  calculateAccConfidence(norm);
+  Kp = DEFAULT_Kp;// * accConfidence;
+  Ki = DEFAULT_Ki;// * accConfidence;
+	
   ax = ax / norm;
   ay = ay / norm;
   az = az / norm;
      	
   // estimated direction of gravity and flux (v and w)
-  vx = 2*(q1*q3 - q0*q2);
-  vy = 2*(q0*q1 + q2*q3);
-  vz = q0*q0 - q1*q1 - q2*q2 + q3*q3;
+  double vx = 2*(q1*q3 - q0*q2);
+  double vy = 2*(q0*q1 + q2*q3);
+  double vz = q0*q0 - q1*q1 - q2*q2 + q3*q3;
     
   // error is sum of cross product between reference direction of fields and direction measured by sensors
-  ex = (vy*az - vz*ay);
-  ey = (vz*ax - vx*az);
-  ez = (vx*ay - vy*ax);
+  double ex = (vy*az - vz*ay);
+  double ey = (vz*ax - vx*az);
+  double ez = (vx*ay - vy*ax);
     
   // integral error scaled integral gain
   exInt = exInt + ex*Ki;
@@ -114,14 +111,10 @@ void argUpdate(float gx, float gy, float gz, float ax, float ay, float az, float
   gz = gz + Kp*ez + ezInt;
     
   // integrate quaternion rate and normalise
-  q0i = (-q1*gx - q2*gy - q3*gz) * halfT;
-  q1i = ( q0*gx + q2*gz - q3*gy) * halfT;
-  q2i = ( q0*gy - q1*gz + q3*gx) * halfT;
-  q3i = ( q0*gz + q1*gy - q2*gx) * halfT;
-  q0 += q0i;
-  q1 += q1i;
-  q2 += q2i;
-  q3 += q3i;
+  q0 += ((-q1*gx - q2*gy - q3*gz) * halfT);
+  q1 += (( q0*gx + q2*gz - q3*gy) * halfT);
+  q2 += (( q0*gy - q1*gz + q3*gx) * halfT);
+  q3 += (( q0*gz + q1*gy - q2*gx) * halfT);
     
   // normalise quaternion
   norm = sqrt(q0*q0 + q1*q1 + q2*q2 + q3*q3);
@@ -129,22 +122,24 @@ void argUpdate(float gx, float gy, float gz, float ax, float ay, float az, float
   q1 = q1 / norm;
   q2 = q2 / norm;
   q3 = q3 / norm;
+  
+  // eulerAngles
+  kinematicsAngle[XAXIS] = atan2(2 * (q0*q1 + q2*q3), 1 - 2 *(q1*q1 + q2*q2));
+  kinematicsAngle[YAXIS] = asin(2 * (q0*q2 - q1*q3));
+  kinematicsAngle[ZAXIS] = atan2(2 * (q0*q3 + q1*q2), 1 - 2 *(q2*q2 + q3*q3));
+  
+  kinematicCorrectedAccel[0] = 2 * q1 * q3 - 2 * q0 * q2;
+  kinematicCorrectedAccel[1] = 2 * q2 * q3 + 2 * q0 * q1;
+  kinematicCorrectedAccel[2] = q0*q0 - q1*q1 - q2*q2 + q3*q3;
 }
   
-void eulerAngles()
-{
-  kinematicsAngle[XAXIS]  = atan2(2 * (q0*q1 + q2*q3), 1 - 2 *(q1*q1 + q2*q2));
-  kinematicsAngle[YAXIS] = asin(2 * (q0*q2 - q1*q3));
-  kinematicsAngle[ZAXIS]   = atan2(2 * (q0*q3 + q1*q2), 1 - 2 *(q2*q2 + q3*q3));
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 // Initialize ARG
 ////////////////////////////////////////////////////////////////////////////////
 
 void initializeKinematics() 
 {
-  initializeBaseKinematicsParam();
+  initializeBaseKinematicParam();
   q0 = 1.0;
   q1 = 0.0;
   q2 = 0.0;
@@ -152,34 +147,8 @@ void initializeKinematics()
   exInt = 0.0;
   eyInt = 0.0;
   ezInt = 0.0;
-	
-  previousEx = 0;
-  previousEy = 0;
-  previousEz = 0;
-
-  Kp = 0.2; // 2.0;
-  Ki = 0.0005; //0.005;
 }
   
-////////////////////////////////////////////////////////////////////////////////
-// Calculate ARG
-////////////////////////////////////////////////////////////////////////////////
-void calculateKinematics(float rollRate,          float pitchRate,    float yawRate,  
-                         float longitudinalAccel, float lateralAccel, float verticalAccel, 
-                         float G_DT) {
-    
-  argUpdate(rollRate,          pitchRate,    yawRate, 
-            longitudinalAccel, lateralAccel, verticalAccel,  
-		    G_Dt);
-  eulerAngles();
-}
-  
-float getGyroUnbias(byte axis) {
-  return correctedRateVector[axis];
-}
-  
-void calibrateKinematics() {}
-
-
+ 
 #endif
 

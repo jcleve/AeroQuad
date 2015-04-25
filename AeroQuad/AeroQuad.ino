@@ -59,6 +59,8 @@
   #include <BatteryMonitorTypes.h>
 #endif
 
+#include <vector3.h>
+
 //********************************************************
 //********************************************************
 //********* PLATFORM SPECIFIC SECTION ********************
@@ -97,10 +99,6 @@
     //#define BMP085
     #define MS5611
   #endif
-  #ifdef AltitudeHoldRangeFinder
-    #define XLMAXSONAR 
-  #endif
-
 
   // Battery Monitor declaration
   #ifdef BattMonitor
@@ -167,6 +165,7 @@
    * Measure critical sensors
    */
   void measureCriticalSensors() {
+    readMPU6000Sensors();
     measureGyroSum();
     measureAccelSum();
   }
@@ -192,6 +191,7 @@
 //****************** KINEMATICS DECLARATION **************
 //********************************************************
 #include "Kinematics.h"
+#include "Kinematics_MARG.h"
 #include "Kinematics_ARG.h"
 
 //********************************************************
@@ -265,6 +265,7 @@
   #include <BarometricSensor_BMP085.h>
 #elif defined(MS5611)
  #include <BarometricSensor_MS5611.h>
+ #include <VelocityProcessor.h>
 #endif
 #if defined(XLMAXSONAR)
   #include <MaxSonarRangeFinder.h>
@@ -456,7 +457,8 @@ void setup() {
   #ifdef HeadingMagHold
     vehicleState |= HEADINGHOLD_ENABLED;
     initializeMagnetometer();
-    initializeHeadingFusion();
+    measureMagnetometer(0.0, 0.0);
+    initializeKinematics(0.0, 0.0, -accelOneG, measuredMag[XAXIS], measuredMag[YAXIS], measuredMag[ZAXIS]);
   #endif
   
   // Optional Sensors
@@ -515,6 +517,37 @@ void setup() {
   safetyCheck = 0;
 }
 
+/*******************************************************************
+ * Compute kinematics
+ ******************************************************************/
+void computerKinematics() {
+  
+  for (byte axis = XAXIS; axis <= ZAXIS; axis++) {
+    filteredAccel[axis] = computeFourthOrder(meterPerSecSec[axis], &fourthOrder[axis]);
+  }
+  
+  const double accelMagnetude = sqrt((filteredAccel[XAXIS]*filteredAccel[XAXIS]) + 
+                                     (filteredAccel[YAXIS]*filteredAccel[YAXIS]) + 
+                                     (filteredAccel[ZAXIS]*filteredAccel[ZAXIS])) - accelOneG;
+                                     
+  if (accelMagnetude > 1.15 || accelMagnetude < 0.85) {
+    for (byte axis = XAXIS; axis <= ZAXIS; axis++) {
+      float filterValue = meterPerSecSec[axis] - filteredAccel[axis];
+      if (filteredAccel[axis] > meterPerSecSec[axis]) {
+        filterValue = filteredAccel[axis] - meterPerSecSec[axis];
+      }
+      filteredAccel[axis] = filteredAccel[axis] - filterValue;
+    }
+  }
+  
+  #if defined (HeadingMagHold) 
+    calculateKinematicsMAGR(gyroRate[XAXIS], gyroRate[YAXIS], gyroRate[ZAXIS], filteredAccel[XAXIS], filteredAccel[YAXIS], filteredAccel[ZAXIS], measuredMag[XAXIS], measuredMag[YAXIS], measuredMag[ZAXIS]);
+    magDataUpdate = false;
+  #else
+    calculateKinematicsAGR(gyroRate[XAXIS], gyroRate[YAXIS], gyroRate[ZAXIS], filteredAccel[XAXIS], filteredAccel[YAXIS], filteredAccel[ZAXIS]);
+  #endif
+
+}
 
 /*******************************************************************
  * 100Hz task
@@ -526,54 +559,37 @@ void process100HzTask() {
   
   evaluateGyroRate();
   evaluateMetersPerSec();
-
-  for (int axis = XAXIS; axis <= ZAXIS; axis++) {
-    filteredAccel[axis] = computeFourthOrder(meterPerSecSec[axis], &fourthOrder[axis]);
-  }
-    
-  calculateKinematics(gyroRate[XAXIS], gyroRate[YAXIS], gyroRate[ZAXIS], filteredAccel[XAXIS], filteredAccel[YAXIS], filteredAccel[ZAXIS], G_Dt);
   
-  #if defined AltitudeHoldBaro || defined AltitudeHoldRangeFinder
-    zVelocity = (filteredAccel[ZAXIS] * (1 - accelOneG * invSqrt(isq(filteredAccel[XAXIS]) + isq(filteredAccel[YAXIS]) + isq(filteredAccel[ZAXIS])))) - runTimeAccelBias[ZAXIS] - runtimeZBias;
-    if (!runtimaZBiasInitialized) {
-      runtimeZBias = (filteredAccel[ZAXIS] * (1 - accelOneG * invSqrt(isq(filteredAccel[XAXIS]) + isq(filteredAccel[YAXIS]) + isq(filteredAccel[ZAXIS])))) - runTimeAccelBias[ZAXIS];
-      runtimaZBiasInitialized = true;
-    }
-    estimatedZVelocity += zVelocity;
-    estimatedZVelocity = (velocityCompFilter1 * zVelocity) + (velocityCompFilter2 * estimatedZVelocity);
-  #endif    
-
-  #if defined(AltitudeHoldBaro)
-    measureBaroSum(); 
-    if (frameCounter % THROTTLE_ADJUST_TASK_SPEED == 0) {  //  50 Hz tasks
-      evaluateBaroAltitude();
-    }
-  #endif
+  computerKinematics(); 
+  
+  processFlightControl(); 
+  
+  #if defined (AltitudeHoldBaro)
+    if (vehicleState & BARO_DETECTED)
+    {
+      if (altHoldInitCountdown > 0) {
+        altHoldInitCountdown--;
+      }
+      else {
+        const float filteredZAccel = -(meterPerSecSec[XAXIS] * kinematicCorrectedAccel[XAXIS] + 
+                                       meterPerSecSec[YAXIS] * kinematicCorrectedAccel[YAXIS] + 
+                                       meterPerSecSec[ZAXIS] * kinematicCorrectedAccel[ZAXIS]);
+  
+        computeVelocity(filteredZAccel, G_Dt);
         
-  processFlightControl();
-  
-  
-  #if defined(BinaryWrite)
-    if (fastTransfer == ON) {
-      // write out fastTelemetry to Configurator or openLog
-      fastTelemetry();
+        measureBaroSum();
+        if (frameCounter % THROTTLE_ADJUST_TASK_SPEED == 0) {  //  50 Hz tasks
+          evaluateBaroAltitude();
+          estimatedAltitude = getBaroAltitude();
+          computeVelocityErrorFromBaroAltitude(estimatedAltitude);
+        }
+      }
     }
-  #endif      
-  
-  #ifdef SlowTelemetry
-    updateSlowTelemetry100Hz();
-  #endif
+  #endif 
 
   #if defined(UseGPS)
     updateGps();
-  #endif      
-  
-  #if defined(CameraControl)
-    moveCamera(kinematicsAngle[YAXIS],kinematicsAngle[XAXIS],kinematicsAngle[ZAXIS]);
-    #if defined CameraTXControl
-      processCameraTXControl();
-    #endif
-  #endif       
+  #endif     
 
 }
 
@@ -587,13 +603,14 @@ void process50HzTask() {
   // Reads external pilot commands and performs functions based on stick configuration
   readPilotCommands(); 
   
+  // ********************** Process Altitude hold **************************
+  processAltitudeControl();
+    
   #if defined(UseAnalogRSSIReader) || defined(UseEzUHFRSSIReader) || defined(UseSBUSRSSIReader)
     readRSSI();
   #endif
 
-  #ifdef AltitudeHoldRangeFinder
-    updateRangeFinders();
-  #endif
+  
 
   #if defined(UseGPS)
     if (haveAGpsLock() && !isHomeBaseInitialized()) {
@@ -611,10 +628,10 @@ void process10HzTask1() {
   
     G_Dt = (currentTime - tenHZpreviousTime) / 1000000.0;
     tenHZpreviousTime = currentTime;
-     
-    measureMagnetometer(kinematicsAngle[XAXIS], kinematicsAngle[YAXIS]);
-    
-    calculateHeading();
+    if (vehicleState & MAG_DETECTED) {
+      measureMagnetometer(kinematicsAngle[XAXIS], kinematicsAngle[YAXIS]);
+      magDataUpdate = true;
+    }
     
   #endif
 }

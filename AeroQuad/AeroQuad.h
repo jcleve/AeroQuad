@@ -169,8 +169,13 @@ void reportVehicleState();
  */
 #if defined AltitudeHoldBaro || defined AltitudeHoldRangeFinder
  // special state that allows immediate turn off of Altitude hold if large throttle changesa are made at the TX
+  
+  #define ALTITUDE_HOLD_STATE 1
+  #define VELOCITY_HOLD_STATE 2
+  byte altHoldInitCountdown = 50;
   byte altitudeHoldState = OFF;  // ON, OFF or ALTPANIC
   int altitudeHoldBump = 90;
+  float altitudeHoldMaxVelocitySpeed = 200.0;
   int altitudeHoldPanicStickMovement = 250;
   int minThrottleAdjust = -50;
   int maxThrottleAdjust = 50;
@@ -178,21 +183,19 @@ void reportVehicleState();
   boolean isAltitudeHoldInitialized = false;
   
   
-  float velocityCompFilter1 = 1.0 / (1.0 + 0.3);
-  float velocityCompFilter2 = 1 - velocityCompFilter1;
+  //float velocityCompFilter1 = 1.0 / (1.0 + 0.3);
+  //float velocityCompFilter2 = 1 - velocityCompFilter1;
 
-  boolean runtimaZBiasInitialized = false;  
-  float zVelocity = 0.0;
-  float estimatedZVelocity = 0.0;
-  float runtimeZBias = 0.0; 
-  float zDampeningThrottleCorrection = 0.0;
+  //boolean runtimaZBiasInitialized = false;  
+  //float zVelocity = 0.0;
+  //float estimatedZVelocity = 0.0;
+  //float runtimeZBias = 0.0; 
+  //float zDampeningThrottleCorrection = 0.0;
 
-  #if defined AltitudeHoldBaro
-    float baroAltitudeToHoldTarget = 0.0;
-  #endif  
-  #if defined AltitudeHoldRangeFinder
-    float sonarAltitudeToHoldTarget = 0.0;
-  #endif
+  float estimatedAltitude = 0.0;
+  float previousBaroAltitude = 0.0;
+  
+  float baroAltitudeToHoldTarget = 0.0;  
 #endif
 //////////////////////////////////////////////////////
 
@@ -316,7 +319,7 @@ typedef struct {
   float BATT_ALARM_VOLTAGE_ADR;
   float BATT_THROTTLE_TARGET_ADR;
   float BATT_DOWN_TIME_ADR;
-  // Range Finder
+  
   float RANGE_FINDER_MAX_ADR;
   float RANGE_FINDER_MIN_ADR;
   // Camera Control

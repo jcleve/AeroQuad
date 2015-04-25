@@ -23,64 +23,61 @@
 
 #include "GlobalDefined.h"
 
-#define CF 0
-#define KF 1
-#define DCM 2
-#define ARG 3
-#define MARG 4
+double halfT = 0.0;                		
+double q0 = 1.0f, q1 = 0.0f, q2 = 0.0f, q3 = 0.0f;
+double previousEx = 0.0;
+double previousEy = 0.0;
+double previousEz = 0.0;
+
 
 // This class is responsible for calculating vehicle attitude
+unsigned long kinematicPreviousTime = 0;
 byte kinematicsType = 0;
-float kinematicsAngle[3] = {0.0,0.0,0.0};
-float gyroAngle[2] = {0.0,0.0};
-float correctedRateVector[3] = {0.0,0.0,0.0};
-float earthAccel[3] = {0.0,0.0,0.0};
+double kinematicsAngle[3] = {0.0,0.0,0.0};
+double correctedRateVector[3] = {0.0,0.0,0.0};
+double earthAccel[3] = {0.0,0.0,0.0};
 
-float accelCutoff = 0.0;
+double kinematicCorrectedAccel[3] = { 0.0, 0.0, 0.0 };
 
-void initializeBaseKinematicsParam() {
+#define HardFilter(O,N)  ((O)*0.9f+(N)*0.1f)
+
+#define DEFAULT_Kp 0.02 // 0.2
+#define DEFAULT_Ki 0.0005 // 0.0005
+
+
+/*double accConfidence      = 1.0f;
+double accConfidenceDecay = 1.0f / sqrt(0.6f);	// @todo, accelCutOff should go into eeprom... if it work
+
+void calculateAccConfidence(double accMag)
+{
+	// G.K. Egan (C) computes confidence in accelerometers when
+	// aircraft is being accelerated over and above that due to gravity
+	static double accMagP = 1.0f;
+	accMag /= accelOneG;  // HJI Added to convert MPS^2 to G's
+	accMag  = HardFilter(accMagP, accMag );
+	accMagP = accMag;
+	accConfidence = constrain(1.0 - (accConfidenceDecay * sqrt(fabs(accMag - 1.0f))), 0.0f, 1.0f);
+}
+*/
+
+void initializeBaseKinematicParam() {
 
   for (byte axis = XAXIS; axis <= ZAXIS; axis++) {
     kinematicsAngle[axis] = 0.0;
   }
-  gyroAngle[XAXIS] = 0;
-  gyroAngle[YAXIS] = 0;
 }
+	
 
-void initializeKinematics(float hdgX, float hdgY);
-void calculateKinematics(float rollRate,           float pitchRate,     float yawRate,       
-                         float longitudinalAccel,  float lateralAccel,  float verticalAccel, 
-                         float G_Dt);
-float getGyroUnbias(byte axis);
-void calibrateKinematics();
- 
-  // returns the kinematicsAngle of a specific axis in SI units (radians)
-//  const float getData(byte axis) {
-//    return kinematicsAngle[axis];
-//  }
-  // return heading as +PI/-PI
-//  const float getHeading(byte axis) {
-//    return(kinematicsAngle[axis]);
-//  }
-  
-  // This really needs to be in Radians to be consistent
-  // I'll fix later - AKA
-  // returns heading in degrees as 0-360
-const float kinematicsGetDegreesHeading(byte axis) {
-  float tDegrees;
+const double kinematicsGetDegreesHeading(byte axis) {
     
-  tDegrees = degrees(kinematicsAngle[axis]);
-  if (tDegrees < 0.0)
+  double tDegrees = degrees(kinematicsAngle[axis]);
+  if (tDegrees < 0.0) {
     return (tDegrees + 360.0);
-  else
+  }
+  else {
     return (tDegrees);
+  }
 }
-  
-//  const byte getType(void) {
-    // This is set in each subclass to identify which algorithm used
-//    return kinematicsType;
-//  }
-
 
 #endif
 
